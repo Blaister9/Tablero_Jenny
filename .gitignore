@@ -1,0 +1,17 @@
+# Ignorar la carpeta node_modules en el frontend
+frontend/node_modules/
+
+# Ignorar la carpeta venv en el backend
+backend/venv/
+
+# Ignorar archivos temporales y de configuración de sistema
+.DS_Store
+*.log
+*.tmp
+
+# Ignorar configuraciones de entorno de desarrollo en Python
+*.pyc
+__pycache__/
+
+# Ignorar carpetas de entorno de desarrollo en Visual Studio Code
+.vscode/

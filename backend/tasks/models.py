@@ -14,10 +14,10 @@ class StrategicLine(models.Model):
 
 class Task(models.Model):
     STATUS_CHOICES = [
-        ('pending', 'Pendiente'),
-        ('in_progress', 'En Proceso'),
-        ('completed', 'Cumplido'),
-        ('delayed', 'Retrasado')
+        ('Pendiente', 'Pendiente'),
+        ('En proceso', 'En Proceso'),
+        ('Cumplido', 'Cumplido'),
+        ('Retrasado', 'Retrasado')
     ]
 
     PRIORITY_CHOICES = [

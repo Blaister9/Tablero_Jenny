@@ -27,7 +27,7 @@ class Task(models.Model):
     ]
 
     # Campos existentes
-    title = models.CharField(max_length=200, verbose_name='Título/Meta')
+    title = models.CharField(max_length=900, verbose_name='Título/Meta')
     description = models.TextField(verbose_name='Descripción')
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,

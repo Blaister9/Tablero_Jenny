@@ -1,65 +1,94 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
+
+const PAGE_SIZE = 15;
 
 export const useStrategicData = (filters) => {
   const queryClient = useQueryClient();
 
-  // Ajuste de filtros, eliminando valores "all" para que no se envíen al backend
   const adjustedFilters = {
     ...filters,
     strategic_line: filters.line !== 'all' ? filters.line : undefined,
     status: filters.status !== 'all' ? filters.status : undefined,
     year: filters.year !== 'all' ? filters.year : undefined,
   };
-  delete adjustedFilters.line; // elimina 'line' para evitar duplicación
+  delete adjustedFilters.line;
 
-  // Obtener tareas con límite de paginación ampliado
-  const { data: tasksData, isLoading, error } = useQuery({
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    error,
+  } = useInfiniteQuery({
     queryKey: ['strategic-tasks', adjustedFilters],
-    queryFn: async () => {
-      const { data } = await api.get('/tasks/', { params: { ...adjustedFilters, page_size: 100 } });
-      console.log("Datos recibidos:", data); // Los datos completos con count, results, etc.
+    queryFn: async ({ pageParam = 1 }) => {
+      const { data } = await api.get('/tasks/', {
+        params: {
+          ...adjustedFilters,
+          page: pageParam,
+          page_size: PAGE_SIZE,
+        },
+      });
       return data;
     },
-    onError: (error) => {
-      console.error("Error fetching tasks:", error);
-    },
-  });
-  
-  // Extraer tasks de los resultados
-  const tasks = tasksData?.results || [];
-
-  // Obtener líneas estratégicas
-  const { data: lines = [] } = useQuery({
-    queryKey: ['strategic-lines'],
-    queryFn: async () => {
-      const { data } = await api.get('/strategic-lines/');
-      return data;
-    },
-    onError: (error) => {
-      console.error("Error fetching strategic lines:", error);
+    getNextPageParam: (lastPage, pages) => {
+      const totalPages = Math.ceil(lastPage.count / PAGE_SIZE);
+      const nextPage = pages.length + 1;
+      return nextPage <= totalPages ? nextPage : undefined;
     },
   });
 
-  // Actualizar tarea
+  // Extraer las líneas estratégicas únicas de las tareas
+  const lines = data?.pages?.reduce((acc, page) => {
+    const pageLines = page.results.map(task => ({
+      id: task.strategic_line,
+      name: task.strategic_line
+    }));
+    return [...new Set([...acc, ...pageLines])];
+  }, []) || [];
+
+  // Actualizar tarea con mejor manejo de errores
   const updateTask = useMutation({
-    mutationFn: async ({ id, ...data }) => {
-      const response = await api.patch(`/tasks/${id}/`, data);
-      return response.data;
+    mutationFn: async (updateData) => {
+      console.log('Intentando actualizar con datos:', updateData);
+      try {
+        const { id, ...data } = updateData;
+        const response = await api.patch(`/tasks/${id}/`, data);
+        console.log('Respuesta del servidor:', response.data);
+        return response.data;
+      } catch (error) {
+        console.error('Error completo del servidor:', error.response?.data);
+        throw new Error(
+          error.response?.data?.detail || 
+          JSON.stringify(error.response?.data) || 
+          'Error al actualizar la tarea'
+        );
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries(['strategic-tasks']);
+      return data;
     },
     onError: (error) => {
-      console.error("Error updating task:", error);
+      console.error('Error en la mutación:', error);
+      throw error;
     },
   });
+
+  const tasks = data?.pages.flatMap((page) => page.results) || [];
+  const totalCount = data?.pages[0]?.count || 0;
 
   return {
     tasks,
-    lines, // Agregar las líneas estratégicas al retorno
+    lines,
     isLoading,
     error,
     updateTask,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    totalCount,
   };
 };

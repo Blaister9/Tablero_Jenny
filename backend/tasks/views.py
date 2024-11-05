@@ -4,13 +4,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.shortcuts import get_object_or_404
 from .models import Task, StrategicLine
-from .serializers import TaskSerializer, TaskListSerializer
+from .serializers import TaskSerializer, TaskListSerializer, StrategicLineSerializer
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'priority', 'assigned_to', 'year', 'strategic_line']
-    search_fields = ['title', 'description']
+    filterset_fields = ['status', 'priority', 'assigned_to', 'year', 'strategic_line','area']
+    search_fields = ['title', 'description', 'area']
     ordering_fields = ['due_date', 'created_at', 'priority']
 
     def get_queryset(self):
@@ -31,7 +33,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(year=year)
         if strategic_line_name and strategic_line_name != 'all':
             strategic_line = get_object_or_404(StrategicLine, name=strategic_line_name)
-            queryset = queryset.filter(strategic_line=strategic_line.id)
+            queryset = queryset.filter(strategic_line__name=strategic_line_name)
 
         # Filtro adicional para usuarios autenticados
         if user.is_authenticated:
@@ -47,4 +49,18 @@ class TaskViewSet(viewsets.ModelViewSet):
         return TaskSerializer
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        if self.request.user.is_authenticated:
+            serializer.save(created_by=self.request.user)
+        else:
+            serializer.save()
+
+    @action(detail=False, methods=['get'])
+    def strategic_lines(self, request):
+        queryset = StrategicLine.objects.all()
+        serializer = StrategicLineSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+class StrategicLineViewSet(viewsets.ModelViewSet):
+    queryset = StrategicLine.objects.all()
+    serializer_class = StrategicLineSerializer
+    permission_classes = [AllowAny]

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from tasks.views import TaskViewSet
+from tasks.views import TaskViewSet, StrategicLineViewSet
 from users.views import UserViewSet
 from dashboard.views import DashboardViewSet
 from maintenance.views import (
@@ -17,6 +17,8 @@ router.register(r'dashboard', DashboardViewSet, basename='dashboard')
 router.register(r'maintenance-groups', MaintenanceSubGroupViewSet, basename='maintenance-group')
 router.register(r'maintenance-items', MaintenanceItemViewSet, basename='maintenance-item')
 router.register(r'maintenance-schedules', MaintenanceScheduleViewSet, basename='maintenance-schedule')
+router.register(r'strategic-lines', StrategicLineViewSet, basename='strategic-line')
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),

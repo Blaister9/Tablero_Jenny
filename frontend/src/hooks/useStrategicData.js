@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient,useQuery } from '@tanstack/react-query';
 import api from '../api/axios';
 
 const PAGE_SIZE = 15;
@@ -46,7 +46,15 @@ export const useStrategicData = (filters) => {
       id: task.strategic_line,
       name: task.strategic_line
     }));
-    return [...new Set([...acc, ...pageLines])];
+    
+    // Eliminar duplicados usando Map
+    const uniqueLines = Array.from(
+      new Map(
+        [...acc, ...pageLines].map(item => [item.name, item])
+      ).values()
+    );
+    
+    return uniqueLines;
   }, []) || [];
 
   // Actualizar tarea con mejor manejo de errores
@@ -77,12 +85,56 @@ export const useStrategicData = (filters) => {
     },
   });
 
-  const tasks = data?.pages.flatMap((page) => page.results) || [];
+  // Dentro de la función que procesa los datos recibidos
+  const tasks = data?.pages.flatMap((page) =>
+    page.results.map(task => ({
+      ...task,
+      area_name: task.area?.name || '',
+      leaders_names: task.leaders?.map(leader => leader.name) || [],
+    }))
+  ) || [];
   const totalCount = data?.pages[0]?.count || 0;
+
+  const createTask = useMutation({
+    mutationFn: async (taskData) => {
+      console.log('Datos enviados:', taskData);
+      try {
+        const response = await api.post('/tasks/', taskData);
+        return response.data;
+      } catch (error) {
+        console.log('Error detallado:', error.response?.data);
+        throw new Error(error.response?.data?.detail || 'Error al crear la tarea');
+      }
+    },
+    onSuccess: () => {
+        queryClient.invalidateQueries(['strategic-tasks']);
+    }
+});
+
+  const { data: areasData } = useQuery({
+    queryKey: ['areas'], // Always use an array for the query key
+    queryFn: async () => {
+      const response = await api.get('/tasks/areas/');
+      console.log("esta es la response de áreas: ",response)
+      return response.data;
+    },
+  });
+
+  const { data: leadersData } = useQuery({
+    queryKey: ['leaders'], // Always use an array for the query key
+    queryFn: async () => {
+      const response = await api.get('/tasks/leaders/');
+      console.log("esta es la response de líderes: ",response)
+      return response.data;
+    },
+  });
+
 
   return {
     tasks,
     lines,
+    areas: areasData || [],
+    leaders: leadersData || [],
     isLoading,
     error,
     updateTask,
@@ -90,5 +142,6 @@ export const useStrategicData = (filters) => {
     hasNextPage,
     isFetchingNextPage,
     totalCount,
+    createTask
   };
 };

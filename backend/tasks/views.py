@@ -3,10 +3,21 @@ from rest_framework.permissions import AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.shortcuts import get_object_or_404
-from .models import Task, StrategicLine
-from .serializers import TaskSerializer, TaskListSerializer, StrategicLineSerializer
+from .models import Task, StrategicLine, Area, Leader
+from .serializers import TaskSerializer, TaskListSerializer, TaskCreateSerializer, StrategicLineSerializer,AreaSerializer,LeaderSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+
+class AreaViewSet(viewsets.ModelViewSet):
+    queryset = Area.objects.all()
+    serializer_class = AreaSerializer
+    permission_classes = [AllowAny]
+
+class LeaderViewSet(viewsets.ModelViewSet):
+    queryset = Leader.objects.filter(active=True)
+    serializer_class = LeaderSerializer
+    permission_classes = [AllowAny]
 
 class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
@@ -44,6 +55,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         return queryset
 
     def get_serializer_class(self):
+        if self.action == 'create':
+            return TaskCreateSerializer
         if self.action == 'list':
             return TaskListSerializer
         return TaskSerializer
@@ -52,7 +65,11 @@ class TaskViewSet(viewsets.ModelViewSet):
         if self.request.user.is_authenticated:
             serializer.save(created_by=self.request.user)
         else:
-            serializer.save()
+            # Para usuarios no autenticados, asignar un usuario por defecto
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            default_user = User.objects.first()  # O la lógica que prefieras
+            serializer.save(created_by=default_user)
 
     @action(detail=False, methods=['get'])
     def strategic_lines(self, request):
@@ -60,7 +77,36 @@ class TaskViewSet(viewsets.ModelViewSet):
         serializer = StrategicLineSerializer(queryset, many=True)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'])
+    def areas(self, request):
+        areas = Area.objects.all()
+        serializer = AreaSerializer(areas, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def leaders(self, request):
+        leaders = Leader.objects.filter(active=True)
+        serializer = LeaderSerializer(leaders, many=True)
+        return Response(serializer.data)
+
 class StrategicLineViewSet(viewsets.ModelViewSet):
     queryset = StrategicLine.objects.all()
     serializer_class = StrategicLineSerializer
     permission_classes = [AllowAny]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

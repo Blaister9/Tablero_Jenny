@@ -140,4 +140,3 @@ class TaskUpdate(models.Model):
     def __str__(self):
         return f"Actualización de {self.task.title} - {self.created_at}"
 
-

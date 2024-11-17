@@ -135,23 +135,3 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             'evidence'
         ]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

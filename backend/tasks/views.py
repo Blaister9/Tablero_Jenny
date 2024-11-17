@@ -8,6 +8,31 @@ from .serializers import TaskSerializer, TaskListSerializer, TaskCreateSerialize
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from rest_framework import viewsets
+from rest_framework.permissions import AllowAny
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+from django.shortcuts import get_object_or_404
+from rest_framework.pagination import PageNumberPagination
+from .models import Task, StrategicLine, Area, Leader
+from .serializers import TaskSerializer, TaskListSerializer, TaskCreateSerializer, StrategicLineSerializer, AreaSerializer, LeaderSerializer
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+class CustomPagination(PageNumberPagination):
+    page_size = 15
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+    def get_paginated_response(self, data):
+        return Response({
+            'count': self.page.paginator.count,
+            'next': self.get_next_link(),
+            'previous': self.get_previous_link(),
+            'results': data,
+            'total_pages': self.page.paginator.num_pages,
+            'current_page': self.page.number,
+        })
 
 class AreaViewSet(viewsets.ModelViewSet):
     queryset = Area.objects.all()
@@ -25,6 +50,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     filterset_fields = ['status', 'priority', 'assigned_to', 'year', 'strategic_line','area']
     search_fields = ['title', 'description', 'area']
     ordering_fields = ['due_date', 'created_at', 'priority']
+    pagination_class = CustomPagination
 
     def get_queryset(self):
         user = self.request.user
@@ -93,20 +119,4 @@ class StrategicLineViewSet(viewsets.ModelViewSet):
     queryset = StrategicLine.objects.all()
     serializer_class = StrategicLineSerializer
     permission_classes = [AllowAny]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

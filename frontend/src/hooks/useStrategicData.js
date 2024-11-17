@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient,useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import api from '../api/axios';
 
 const PAGE_SIZE = 15;
@@ -24,19 +24,65 @@ export const useStrategicData = (filters) => {
   } = useInfiniteQuery({
     queryKey: ['strategic-tasks', adjustedFilters],
     queryFn: async ({ pageParam = 1 }) => {
-      const { data } = await api.get('/tasks/', {
-        params: {
-          ...adjustedFilters,
-          page: pageParam,
-          page_size: PAGE_SIZE,
-        },
-      });
-      return data;
+      try {
+        const { data } = await api.get('/tasks/', {
+          params: {
+            ...adjustedFilters,
+            page: pageParam,
+            page_size: PAGE_SIZE,
+          },
+        });
+
+        // Verificar si tenemos los datos esperados
+        if (!data || !Array.isArray(data.results)) {
+          console.warn('Formato de respuesta inesperado:', data);
+          return {
+            results: [],
+            currentPage: pageParam,
+            totalPages: 0,
+            totalCount: 0,
+          };
+        }
+
+        return {
+          results: data.results,
+          currentPage: pageParam,
+          totalPages: Math.ceil(data.count / PAGE_SIZE),
+          totalCount: data.count,
+        };
+      } catch (error) {
+        // Si es un 404 y es la primera página, propagar el error
+        if (error.response?.status === 404 && pageParam === 1) {
+          throw error;
+        }
+        // Si es un 404 en páginas posteriores, retornar página vacía
+        if (error.response?.status === 404) {
+          return {
+            results: [],
+            currentPage: pageParam,
+            totalPages: pageParam - 1,
+            totalCount: (pageParam - 1) * PAGE_SIZE,
+          };
+        }
+        throw error;
+      }
     },
-    getNextPageParam: (lastPage, pages) => {
-      const totalPages = Math.ceil(lastPage.count / PAGE_SIZE);
-      const nextPage = pages.length + 1;
-      return nextPage <= totalPages ? nextPage : undefined;
+    getNextPageParam: (lastPage) => {
+      // Solo continuar si hay más páginas
+      if (lastPage.currentPage < lastPage.totalPages) {
+        return lastPage.currentPage + 1;
+      }
+      return undefined;
+    },
+    suspense: false,
+    refetchOnWindowFocus: false,
+    cacheTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 1 * 60 * 1000, // 1 minuto
+    retry: (failureCount, error) => {
+      // No reintentar en caso de 404
+      if (error.response?.status === 404) return false;
+      // Reintentar máximo 3 veces para otros errores
+      return failureCount < 3;
     },
   });
 
@@ -57,17 +103,13 @@ export const useStrategicData = (filters) => {
     return uniqueLines;
   }, []) || [];
 
-  // Actualizar tarea con mejor manejo de errores
   const updateTask = useMutation({
     mutationFn: async (updateData) => {
-      console.log('Intentando actualizar con datos:', updateData);
       try {
         const { id, ...data } = updateData;
         const response = await api.patch(`/tasks/${id}/`, data);
-        console.log('Respuesta del servidor:', response.data);
         return response.data;
       } catch (error) {
-        console.error('Error completo del servidor:', error.response?.data);
         throw new Error(
           error.response?.data?.detail || 
           JSON.stringify(error.response?.data) || 
@@ -75,17 +117,12 @@ export const useStrategicData = (filters) => {
         );
       }
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries(['strategic-tasks']);
-      return data;
-    },
-    onError: (error) => {
-      console.error('Error en la mutación:', error);
-      throw error;
     },
   });
 
-  // Dentro de la función que procesa los datos recibidos
+  // Procesar los datos recibidos
   const tasks = data?.pages.flatMap((page) =>
     page.results.map(task => ({
       ...task,
@@ -93,42 +130,39 @@ export const useStrategicData = (filters) => {
       leaders_names: task.leaders?.map(leader => leader.name) || [],
     }))
   ) || [];
-  const totalCount = data?.pages[0]?.count || 0;
+
+  const totalCount = data?.pages[0]?.totalCount || 0;
 
   const createTask = useMutation({
     mutationFn: async (taskData) => {
-      console.log('Datos enviados:', taskData);
       try {
         const response = await api.post('/tasks/', taskData);
         return response.data;
       } catch (error) {
-        console.log('Error detallado:', error.response?.data);
         throw new Error(error.response?.data?.detail || 'Error al crear la tarea');
       }
     },
     onSuccess: () => {
-        queryClient.invalidateQueries(['strategic-tasks']);
+      queryClient.invalidateQueries(['strategic-tasks']);
     }
-});
+  });
 
+  // Queries para áreas y líderes
   const { data: areasData } = useQuery({
-    queryKey: ['areas'], // Always use an array for the query key
+    queryKey: ['areas'],
     queryFn: async () => {
       const response = await api.get('/tasks/areas/');
-      console.log("esta es la response de áreas: ",response)
       return response.data;
     },
   });
 
   const { data: leadersData } = useQuery({
-    queryKey: ['leaders'], // Always use an array for the query key
+    queryKey: ['leaders'],
     queryFn: async () => {
       const response = await api.get('/tasks/leaders/');
-      console.log("esta es la response de líderes: ",response)
       return response.data;
     },
   });
-
 
   return {
     tasks,

@@ -1,10 +1,9 @@
-# tasks/management/commands/import_tasks.py
-
 import pandas as pd
 from django.core.management.base import BaseCommand
-from tasks.models import Task, StrategicLine
+from tasks.models import Task, StrategicLine, Area, Leader
 from django.contrib.auth import get_user_model
 import pytz
+from datetime import datetime
 
 User = get_user_model()
 
@@ -13,72 +12,118 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('file_path', type=str, help='The path to the Excel file')
+        parser.add_argument('--clean', action='store_true', help='Limpiar datos existentes antes de importar')
+
+    def clean_database(self):
+        """Limpia todos los datos existentes"""
+        self.stdout.write("Limpiando base de datos...")
+        Task.objects.all().delete()
+        Leader.objects.all().delete()
+        Area.objects.all().delete()
+        StrategicLine.objects.all().delete()
+        self.stdout.write(self.style.SUCCESS("Base de datos limpiada exitosamente"))
+
+    def create_leader_from_text(self, leader_text):
+        """Crea líderes a partir de texto, manejando múltiples nombres"""
+        if not leader_text or pd.isna(leader_text):
+            return []
+        
+        leaders = []
+        # Dividir por comas y limpiar espacios
+        names = [name.strip() for name in str(leader_text).split(',')]
+        
+        for name in names:
+            if name:  # Si el nombre no está vacío
+                leader, created = Leader.objects.get_or_create(
+                    name=name,
+                    defaults={'active': True}
+                )
+                if created:
+                    self.stdout.write(f"Nuevo líder creado: {name}")
+                leaders.append(leader)
+        
+        return leaders
 
     def handle(self, *args, **options):
+        if options['clean']:
+            self.clean_database()
+
         file_path = options['file_path']
-        df = pd.read_excel(file_path, sheet_name="Seguimiento", header=1, usecols="B:N")
 
-        self.stdout.write(self.style.SUCCESS(f"Columnas encontradas: {df.columns.tolist()}"))
-
-        # Convertir 'Fecha límite' y 'Fecha alarma' a datetime
-        df['Fecha límite'] = pd.to_datetime(df['Fecha límite'], errors='coerce', dayfirst=True)
-        df['Fecha alarma'] = pd.to_datetime(df['Fecha alarma'], errors='coerce', dayfirst=True)
-        df = df.dropna(subset=['Fecha límite'])
-
-        for index, row in df.iterrows():
-            self.stdout.write(f"Procesando fila {index + 1}")
-            due_date = row['Fecha límite']
+        try:
+            df = pd.read_excel(
+                file_path, 
+                sheet_name="Seguimiento",
+                header=1,
+            )
+            self.stdout.write(self.style.SUCCESS(f"Archivo leído exitosamente"))
             
-            if pd.isna(due_date):  
-                self.stdout.write(self.style.WARNING(
-                    f"Omitiendo la tarea '{row['Meta']}' por fecha límite inválida."
-                ))
-                continue
+            # Crear usuario por defecto para assigned_to y created_by
+            default_user, _ = User.objects.get_or_create(
+                username='admin',
+                defaults={
+                    'is_staff': True,
+                    'is_superuser': True,
+                    'email': 'admin@example.com'
+                }
+            )
 
-            due_date = due_date.to_pydatetime().replace(tzinfo=pytz.UTC)
-            self.stdout.write(f"Fecha límite (procesada): {due_date}")
+            # Procesar cada fila
+            for index, row in df.iterrows():
+                try:
+                    # Crear línea estratégica
+                    strategic_line, _ = StrategicLine.objects.get_or_create(
+                        name=str(row['Línea']).strip()
+                    )
 
-            strategic_line, _ = StrategicLine.objects.get_or_create(name=row['Línea'])
+                    # Crear área
+                    area = None
+                    if pd.notna(row['AREA']):
+                        area, _ = Area.objects.get_or_create(
+                            name=str(row['AREA']).strip()
+                        )
 
-            leader_name = row['Lidera']
-            leader = User.objects.filter(username=leader_name).first()
-            if not leader:
-                self.stdout.write(self.style.WARNING(
-                    f"Omitiendo la tarea '{row['Meta']}' porque el usuario '{leader_name}' no existe."
-                ))
-                continue
+                    # Crear líderes
+                    leaders = self.create_leader_from_text(row['Lidera'])
+                    support_team = self.create_leader_from_text(row['Apoya'])
 
-            unique_fields = {
-                'title': row['Meta'],
-                'due_date': due_date,
-                'assigned_to': leader,
-                'status': row['Estado'],
-                'strategic_line': strategic_line,
-                'deliverable': row['Entregable/Acción'],
-            }
+                    # Procesar fechas
+                    due_date = pd.to_datetime(row['Fecha límite']).replace(tzinfo=pytz.UTC) if pd.notna(row['Fecha límite']) else None
+                    alert_date = pd.to_datetime(row['Fecha alarma']).replace(tzinfo=pytz.UTC) if pd.notna(row['Fecha alarma']) else None
 
-            # Asigna `alert_date` como `None` si es `NaT`, de lo contrario, convierte a UTC
-            alert_date = row['Fecha alarma'] if pd.notna(row['Fecha alarma']) else None
-            if alert_date:
-                alert_date = alert_date.to_pydatetime().replace(tzinfo=pytz.UTC)
+                    # Crear la tarea
+                    task = Task.objects.create(
+                        title=str(row['Meta']).strip(),
+                        strategic_line=strategic_line,
+                        status=str(row['Estado']).strip() if pd.notna(row['Estado']) else 'Pendiente',
+                        year=int(row['Año']) if pd.notna(row['Año']) else datetime.now().year,
+                        description=str(row['Observaciones']).strip() if pd.notna(row['Observaciones']) else '',
+                        evidence=str(row['Evidencia']).strip() if pd.notna(row['Evidencia']) else '',
+                        due_date=due_date,
+                        alert_date=alert_date,
+                        limit_month=int(row['Mes límite']) if pd.notna(row['Mes límite']) else None,
+                        area=area,
+                        daruma_code=str(row['CODIGO DARUMA o ID']).strip() if pd.notna(row['CODIGO DARUMA o ID']) else '',
+                        deliverable=str(row['Entregable/Acción']).strip() if pd.notna(row['Entregable/Acción']) else '',
+                        assigned_to=default_user,
+                        created_by=default_user
+                    )
 
-            task_data = {
-                'year': row['Año'],
-                'priority': 'medium',
-                'alert_date': alert_date,  # Asignamos `None` si `Fecha alarma` está vacío
-                'limit_month': row.get('Mes límite'),
-                'area': row.get('AREA', ''),
-                'support_team': row.get('Apoya', ''),
-                'evidence': row.get('Evidencia', ''),
-                'created_by': leader
-            }
+                    # Asignar líderes y equipo de apoyo
+                    if leaders:
+                        task.leaders.set(leaders)
+                    if support_team:
+                        task.support_team.set(support_team)
 
-            try:
-                task, created = Task.objects.update_or_create(
-                    **unique_fields, defaults=task_data
-                )
-                action = "Creada" if created else "Actualizada"
-                self.stdout.write(self.style.SUCCESS(f"{action}: {task.title}"))
-            except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Error al crear/actualizar la tarea: {e}"))
-                self.stdout.write(f"Valores de fila problemáticos: {row.to_dict()}")
+                    self.stdout.write(self.style.SUCCESS(
+                        f"Tarea creada exitosamente: {task.title} (fila {index + 2})"
+                    ))
+
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(
+                        f"Error en fila {index + 2}: {str(e)}\n"
+                        f"Datos: {row.to_dict()}"
+                    ))
+
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error al procesar el archivo: {str(e)}"))

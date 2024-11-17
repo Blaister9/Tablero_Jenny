@@ -52,6 +52,7 @@ class Task(models.Model):
 
     # Campos existentes
     title = models.CharField(max_length=900, verbose_name='Título/Meta')
+    daruma_code = models.CharField(max_length=100, blank=True, null=True, verbose_name='Código Daruma')
     description = models.TextField(verbose_name='Descripción')
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,

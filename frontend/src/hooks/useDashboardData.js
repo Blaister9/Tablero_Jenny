@@ -15,7 +15,7 @@ export const useDashboardData = () => {
       const { data } = await api.get('/tasks/', {
         params: { page_size: totalTasks }
       });
-      
+      console.log('Datos crudos del backend:', data.results);      
       return data.results;
     },
   });

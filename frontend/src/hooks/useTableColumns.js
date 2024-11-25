@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 
 export const TABLE_COLUMNS = [
-  { id: 'year', header: 'AÑO', width: '70px', defaultVisible: true },
+  { id: 'year', header: 'AÑO', width: '80px', defaultVisible: true },
   { id: 'strategic_line', header: 'LÍNEA', width: '120px', defaultVisible: true },
   { id: 'title', header: 'META', width: '200px', defaultVisible: true },
   { id: 'daruma_code', header: 'CÓDIGO DARUMA', width: '120px', defaultVisible: true },

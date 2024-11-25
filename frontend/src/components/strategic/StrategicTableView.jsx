@@ -1,39 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Clock, CheckCircle } from 'lucide-react';
+import { Clock, CheckCircle, MoreHorizontal, Eye, AlertCircle } from 'lucide-react';
+import * as Tooltip from '@radix-ui/react-tooltip';
 import { useTableColumns } from '../../hooks/useTableColumns';
 import ColumnsConfig from './ColumnsConfig';
 
-const Tooltip = ({ content, children, placement = 'right' }) => {
-  const [isVisible, setIsVisible] = useState(false);
+import {
+  Table,
+  TableHeader,
+  TableBody,
+} from '../ui/table';
 
-  if (!content) return children;
-
-  return (
-    <div className="relative"
-      onMouseEnter={() => setIsVisible(true)}
-      onMouseLeave={() => setIsVisible(false)}
-    >
-      {children}
-      {isVisible && (
-        <div 
-          className={`absolute z-[60] w-64 p-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg -top-2 ${
-            placement === 'right' ? 'left-full ml-2' : 'right-full mr-2'
-          }`}
-        >
-          {content}
-          <div 
-            className={`absolute top-3 w-2 h-2 bg-gray-900 transform rotate-45 ${
-              placement === 'right' ? '-left-1' : '-right-1'
-            }`} 
-          />
-        </div>
-      )}
-    </div>
-  );
-};
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 
 const StrategicTableView = ({
   tasks,
@@ -50,6 +35,49 @@ const StrategicTableView = ({
     allColumns
   } = useTableColumns();
 
+  const tableContainerRef = useRef(null);
+
+  // Actualizar el ancho del contenedor de la tabla cuando cambien las columnas visibles
+  useEffect(() => {
+    if (tableContainerRef.current) {
+      const totalWidth = getVisibleColumns().reduce(
+        (acc, col) => acc + parseInt(col.width, 10),
+        0
+      );
+      // Añadir padding extra para asegurar que siempre haya scroll si es necesario
+      const minRequiredWidth = Math.max(totalWidth, tableContainerRef.current.parentElement.clientWidth);
+      tableContainerRef.current.style.minWidth = `${minRequiredWidth}px`;
+    }
+  }, [visibleColumns, tasks, getVisibleColumns]);
+
+  // Añadir después del useEffect anterior
+  useEffect(() => {
+    const handleResize = () => {
+      if (tableContainerRef.current && parentRef.current) {
+        const totalWidth = getVisibleColumns().reduce(
+          (acc, col) => acc + parseInt(col.width, 10),
+          0
+        );
+        const containerWidth = parentRef.current.clientWidth;
+        const finalWidth = Math.max(totalWidth, containerWidth);
+        tableContainerRef.current.style.minWidth = `${finalWidth}px`;
+      }
+    };
+
+    // Crear un ResizeObserver para detectar cambios en el tamaño del contenedor
+    const resizeObserver = new ResizeObserver(handleResize);
+    if (parentRef.current) {
+      resizeObserver.observe(parentRef.current);
+    }
+
+    // Llamar a handleResize inmediatamente
+    handleResize();
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [getVisibleColumns]);
+
   const rowVirtualizer = useVirtualizer({
     count: tasks.length,
     getScrollElement: () => parentRef.current,
@@ -65,111 +93,174 @@ const StrategicTableView = ({
     );
   }
 
+  const StatusBadge = ({ status }) => {
+    const config = {
+      'Cumplido': {
+        icon: CheckCircle,
+        className: 'bg-green-100 text-green-800 border-green-200'
+      },
+      'En proceso': {
+        icon: Clock,
+        className: 'bg-blue-100 text-blue-800 border-blue-200'
+      },
+      'Pendiente': {
+        icon: AlertCircle,
+        className: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      }
+    }[status] || {
+      icon: AlertCircle,
+      className: 'bg-gray-100 text-gray-800 border-gray-200'
+    };
+
+    const Icon = config.icon;
+
+    return (
+      <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${config.className}`}>
+        <Icon className="w-3.5 h-3.5 mr-1" />
+        {status}
+      </div>
+    );
+  };
+
+  const TooltipWrapper = ({ content, children }) => (
+    <Tooltip.Provider delayDuration={300}>
+      <Tooltip.Root>
+        <Tooltip.Trigger asChild>
+          {children}
+        </Tooltip.Trigger>
+        <Tooltip.Portal>
+          <Tooltip.Content
+            className="rounded-md bg-gray-900 px-3 py-1.5 text-xs text-white shadow-md max-w-md z-50"
+            sideOffset={5}
+          >
+            {content}
+            <Tooltip.Arrow className="fill-gray-900" />
+          </Tooltip.Content>
+        </Tooltip.Portal>
+      </Tooltip.Root>
+    </Tooltip.Provider>
+  );
+
   const renderCell = (task, column) => {
     const cellContent = {
       year: () => (
-        <span className="text-sm text-gray-900">{task.year || '2024'}</span>
+        <div className="text-sm font-medium text-gray-900 whitespace-nowrap">
+          {task.year || '2024'}
+        </div>
       ),
       strategic_line: () => (
-        <Tooltip content={task.strategic_line}>
-          <span className="text-sm text-gray-900">{task.strategic_line}</span>
-        </Tooltip>
+        <TooltipWrapper content={task.strategic_line}>
+          <div className="max-w-[120px] truncate text-sm text-gray-900">
+            {task.strategic_line}
+          </div>
+        </TooltipWrapper>
       ),
       title: () => (
-        <Tooltip content={task.title}>
-          <div className="text-sm text-gray-900 line-clamp-2">{task.title}</div>
-        </Tooltip>
+        <TooltipWrapper content={task.title}>
+          <div className="max-w-[200px] truncate text-sm font-medium text-gray-900">
+            {task.title}
+          </div>
+        </TooltipWrapper>
       ),
       daruma_code: () => (
-        <span className="text-sm text-gray-900">{task.daruma_code || 'N/A'}</span>
+        <div className="text-sm text-gray-900 whitespace-nowrap">
+          {task.daruma_code || 'N/A'}
+        </div>
       ),
-      status: () => (
-        <span className={`
-          inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-          ${task.status === 'Cumplido' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}
-        `}>
-          {task.status === 'Cumplido' 
-            ? <CheckCircle className="w-3.5 h-3.5 mr-1" />
-            : <Clock className="w-3.5 h-3.5 mr-1" />
-          }
-          {task.status}
-        </span>
-      ),
+      status: () => <StatusBadge status={task.status} />,
       alert_date: () => (
-        <span className="text-sm text-gray-500">
-          {task.alert_date ? format(new Date(task.alert_date), 'd MMM yyyy', { locale: es }) : 'N/A'}
-        </span>
+        <div className="text-sm text-gray-500 whitespace-nowrap">
+          {task.alert_date 
+            ? format(new Date(task.alert_date), 'd MMM yyyy', { locale: es })
+            : 'N/A'
+          }
+        </div>
       ),
       limit_month: () => (
-        <span className="text-sm text-gray-900">{task.limit_month || 'N/A'}</span>
+        <div className="text-sm text-gray-900 whitespace-nowrap text-center">
+          {task.limit_month || 'N/A'}
+        </div>
       ),
       due_date: () => (
-        <span className="text-sm text-gray-500">
+        <div className="text-sm text-gray-500 whitespace-nowrap">
           {format(new Date(task.due_date), 'd MMM yyyy', { locale: es })}
-        </span>
+        </div>
       ),
       deliverable: () => (
-        <Tooltip content={task.deliverable}>
-          <div className="text-sm text-gray-900 line-clamp-2">{task.deliverable || task.entregable || 'N/A'}</div>
-        </Tooltip>
+        <TooltipWrapper content={task.deliverable || task.entregable || 'N/A'}>
+          <div className="max-w-[150px] truncate text-sm text-gray-900">
+            {task.deliverable || task.entregable || 'N/A'}
+          </div>
+        </TooltipWrapper>
       ),
       area: () => (
-        <span className="text-sm text-gray-900">{task.area_data?.name || 'N/A'}</span>
+        <div className="text-sm text-gray-900 whitespace-nowrap">
+          {task.area_data?.name || 'N/A'}
+        </div>
       ),
       leaders: () => (
-        task.leaders?.length > 0 ? (
-          <Tooltip content={task.leaders.map(l => l.name).join('\n')} placement="left">
-            <div>
-              <div className="text-sm text-gray-900">
-                {`${task.leaders.length} líderes`}
-              </div>
-              <div className="text-xs text-gray-500 mt-0.5 truncate">
+        <TooltipWrapper content={task.leaders?.map(l => l.name).join('\n') || 'Sin líder'}>
+          <div className="space-y-0.5">
+            <div className="text-sm text-gray-900 whitespace-nowrap">
+              {task.leaders?.length > 0 ? `${task.leaders.length} líderes` : 'Sin líder'}
+            </div>
+            {task.leaders?.length > 0 && (
+              <div className="text-xs text-gray-500 truncate max-w-[150px]">
                 {task.leaders.map(l => l.name).join(', ')}
               </div>
-            </div>
-          </Tooltip>
-        ) : (
-          <span className="text-sm text-gray-500">Sin líder</span>
-        )
+            )}
+          </div>
+        </TooltipWrapper>
       ),
       support_team: () => (
-        task.support_team?.length > 0 ? (
-          <Tooltip content={task.support_team.map(m => m.name).join('\n')} placement="left">
-            <div className="text-sm text-gray-900 line-clamp-2">
-              {task.support_team.map(m => m.name).join(', ')}
-            </div>
-          </Tooltip>
-        ) : (
-          <span className="text-sm text-gray-500">N/A</span>
-        )
+        <TooltipWrapper content={task.support_team?.map(m => m.name).join('\n') || 'N/A'}>
+          <div className="max-w-[150px] truncate text-sm text-gray-900">
+            {task.support_team?.length > 0 
+              ? task.support_team.map(m => m.name).join(', ')
+              : 'N/A'
+            }
+          </div>
+        </TooltipWrapper>
       ),
       evidence: () => (
-        <Tooltip content={task.evidence}>
-          <div className="text-sm text-gray-900 line-clamp-2">{task.evidence || 'N/A'}</div>
-        </Tooltip>
+        <TooltipWrapper content={task.evidence || 'N/A'}>
+          <div className="max-w-[150px] truncate text-sm text-gray-900">
+            {task.evidence || 'N/A'}
+          </div>
+        </TooltipWrapper>
       ),
       description: () => (
-        <Tooltip content={task.description}>
-          <div className="text-sm text-gray-500 line-clamp-2">
+        <TooltipWrapper content={task.description || 'Sin descripción'}>
+          <div className="max-w-[200px] truncate text-sm text-gray-500">
             {task.description || 'Sin descripción'}
           </div>
-        </Tooltip>
+        </TooltipWrapper>
       ),
       actions: () => (
-        <button
-          onClick={() => onEditTask(task)}
-          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-        >
-          Editar
-        </button>
-      )
+        <DropdownMenu>
+          <DropdownMenuTrigger className="h-8 w-8 p-0 hover:bg-gray-100 rounded-md transition-colors flex items-center justify-center">
+            <span className="sr-only">Abrir menú</span>
+            <MoreHorizontal className="h-4 w-4 text-gray-500" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem 
+              onClick={() => onEditTask(task)}
+              className="flex items-center cursor-pointer"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              <span>Ver detalles</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
     };
 
-    return cellContent[column.id]?.() || null;
+    return cellContent[column.id]?.() || (
+      <div className="text-sm text-gray-900 whitespace-nowrap">
+        {task[column.id]}
+      </div>
+    );
   };
-
-  console.log('Tasks recibidas en tabla:', tasks);
-  console.log('Primera tarea completa:', tasks[0]);
 
   return (
     <div className="space-y-4">
@@ -182,68 +273,76 @@ const StrategicTableView = ({
         />
       </div>
       
-      <div className="w-full overflow-hidden rounded-lg shadow-sm border border-gray-200">
+      <div className="rounded-lg border border-gray-200">
         <div 
           ref={parentRef}
-          className="w-full overflow-auto bg-white"
-          style={{ height: '70vh' }}
+          className="w-full overflow-auto bg-white relative"
+          style={{ height: '70vh', overflowX: 'auto', overflowY: 'auto' }}
         >
-          <table className="min-w-full border-collapse table-fixed">
-            <thead className="bg-gray-50">
-              <tr className="border-b border-gray-200">
-                {getVisibleColumns().map((column) => (
-                  <th 
-                    key={column.id}
-                    style={{ width: column.width }}
-                    className="sticky top-0 z-10 bg-gray-50 px-4 py-3.5 text-left text-sm font-semibold text-gray-900"
-                  >
-                    {column.header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colSpan={getVisibleColumns().length} className="p-0">
-                  <div
-                    style={{
-                      height: `${rowVirtualizer.getTotalSize()}px`,
-                      width: '100%',
-                      position: 'relative',
-                    }}
-                  >
-                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                      const task = tasks[virtualRow.index];
-                      return (
-                        <div
-                          key={task.id}
-                          ref={virtualRow.index === tasks.length - 1 ? intObserver : null}
-                          className="absolute w-full border-b border-gray-200 hover:bg-gray-50"
-                          style={{
-                            top: 0,
-                            transform: `translateY(${virtualRow.start}px)`,
-                            height: `${virtualRow.size}px`,
-                          }}
-                        >
-                          <div className="flex items-center h-full">
-                            {getVisibleColumns().map((column) => (
-                              <div
-                                key={column.id}
-                                style={{ width: column.width }}
-                                className="px-4 flex items-center"
-                              >
-                                {renderCell(task, column)}
-                              </div>
-                            ))}
+          <div ref={tableContainerRef}>
+            <Table>
+              <TableHeader>
+                <tr className="border-b border-gray-200">
+                  {getVisibleColumns().map((column) => (
+                    <th
+                      key={column.id}
+                      style={{ 
+                        width: column.width,
+                        minWidth: column.width,
+                      }}
+                      className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left text-sm font-semibold text-gray-900 shadow-sm"
+                    >
+                      {column.header}
+                    </th>
+                  ))}
+                </tr>
+              </TableHeader>
+              <TableBody>
+                <tr>
+                  <td colSpan={getVisibleColumns().length} className="p-0">
+                    <div
+                      style={{
+                        height: `${rowVirtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
+                      }}
+                    >
+                      {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                        const task = tasks[virtualRow.index];
+                        return (
+                          <div
+                            key={task.id}
+                            ref={virtualRow.index === tasks.length - 1 ? intObserver : null}
+                            className="absolute w-full border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                            style={{
+                              top: 0,
+                              transform: `translateY(${virtualRow.start}px)`,
+                              height: `${virtualRow.size}px`,
+                            }}
+                          >
+                            <div className="flex items-center h-full">
+                              {getVisibleColumns().map((column) => (
+                                <div
+                                  key={column.id}
+                                  style={{ 
+                                    width: column.width,
+                                    minWidth: column.width,
+                                  }}
+                                  className="px-4 flex items-center overflow-hidden"
+                                >
+                                  {renderCell(task, column)}
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                        );
+                      })}
+                    </div>
+                  </td>
+                </tr>
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -6,13 +6,11 @@ import { Clock, CheckCircle, MoreHorizontal, Eye, AlertCircle } from 'lucide-rea
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { useTableColumns } from '../../hooks/useTableColumns';
 import ColumnsConfig from './ColumnsConfig';
-
 import {
   Table,
   TableHeader,
   TableBody,
 } from '../ui/table';
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +34,10 @@ const StrategicTableView = ({
   } = useTableColumns();
 
   const tableContainerRef = useRef(null);
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+
 
   // Actualizar el ancho del contenedor de la tabla cuando cambien las columnas visibles
   useEffect(() => {
@@ -77,6 +79,18 @@ const StrategicTableView = ({
       resizeObserver.disconnect();
     };
   }, [getVisibleColumns]);
+
+  // Añadir esta función para manejar el doble clic
+  const handleRowDoubleClick = (task) => {
+    setSelectedTaskId(task.id);
+    onEditTask(task);
+    setIsModalOpen(true);
+  };
+
+  // Añadir estas funciones de manejo
+  const handleRowClick = (task) => {
+    setSelectedTaskId(task.id);
+  }; 
 
   const rowVirtualizer = useVirtualizer({
     count: tasks.length,
@@ -313,12 +327,19 @@ const StrategicTableView = ({
                           <div
                             key={task.id}
                             ref={virtualRow.index === tasks.length - 1 ? intObserver : null}
-                            className="absolute w-full border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                            className={`absolute w-full border-b border-gray-200 transition-all duration-200 cursor-pointer
+                              ${selectedTaskId === task.id 
+                                ? 'bg-blue-50 ring-1 ring-blue-200' 
+                                : 'hover:bg-gray-50'
+                              }
+                            `}
                             style={{
                               top: 0,
                               transform: `translateY(${virtualRow.start}px)`,
                               height: `${virtualRow.size}px`,
                             }}
+                            onClick={() => handleRowClick(task)}
+                            onDoubleClick={() => handleRowDoubleClick(task)}
                           >
                             <div className="flex items-center h-full">
                               {getVisibleColumns().map((column) => (

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Task, StrategicLine, Area, Leader
+from datetime import datetime, date
 
 class AreaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -70,8 +71,9 @@ class TaskSerializer(serializers.ModelSerializer):
     leader = serializers.SerializerMethodField()
     area_data = AreaSerializer(source='area', read_only=True)
     leaders_data = LeaderSerializer(source='leaders', read_only=True, many=True)
-    support_team = LeaderSerializer(many=True, read_only=True)
+    support_team = serializers.PrimaryKeyRelatedField(many=True, queryset=Leader.objects.all(), required=False)
     leaders_names = serializers.SerializerMethodField()
+    alert_date = serializers.DateField(format='%Y-%m-%d', input_formats=['%Y-%m-%d'], required=False)
 
     class Meta:
         model = Task
@@ -98,6 +100,9 @@ class TaskSerializer(serializers.ModelSerializer):
             'evidence',
             'support_team'
         ]
+        extra_kwargs = {
+            'description': {'required': False, 'allow_blank': True}
+        }
         read_only_fields = ['created_at', 'updated_at']
 
     def get_assigned_to_name(self, obj):
@@ -115,6 +120,17 @@ class TaskSerializer(serializers.ModelSerializer):
         return [leader.name for leader in obj.leaders.all()]
 
     def update(self, instance, validated_data):
+        support_team_data = validated_data.pop('support_team', None)
+        if support_team_data is not None:
+            print("Support team data received:", support_team_data)            
+            instance.support_team.set(support_team_data)
+
+        if 'alert_date' in validated_data:
+            alert_date = validated_data.pop('alert_date')
+            print('Fecha recibida en backend:', alert_date)
+            instance.alert_date = alert_date if isinstance(alert_date, date) else datetime.strptime(alert_date, '%Y-%m-%d').date()
+            print('Fecha después de guardar:', instance.alert_date)
+
         strategic_line = validated_data.pop('strategic_line', None)
         if isinstance(strategic_line, str):
             strategic_line_obj, _ = StrategicLine.objects.get_or_create(name=strategic_line)
@@ -126,6 +142,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
         support_team_data = validated_data.pop('support_team', None)
         if support_team_data is not None:
+            print("Support team data received:", support_team_data)
             instance.support_team.set(support_team_data)
 
         for attr, value in validated_data.items():
@@ -133,6 +150,15 @@ class TaskSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['support_team'] = LeaderSerializer(instance.support_team.all(), many=True).data        
+        if instance.alert_date:
+            from datetime import datetime, timezone
+            local_date = instance.alert_date
+            data['alert_date'] = local_date.strftime('%Y-%m-%d')
+        return data
 
 class TaskCreateSerializer(serializers.ModelSerializer):
     strategic_line = serializers.CharField()

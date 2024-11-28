@@ -88,8 +88,14 @@ const StrategicTable = () => {
 
   const handleEditTask = (task) => {
     setModalMode('edit');
-    setSelectedTask(task);
+    setSelectedTask({
+      ...task,
+      support_team: Array.isArray(task.support_team)
+      ? task.support_team.map(member => (typeof member === 'object' ? member : leaders.find(user => user.id === member)))
+      : [],
+    });
   };
+  
 
   const handleSave = async () => {
     if (!selectedTask) return;
@@ -101,22 +107,34 @@ const StrategicTable = () => {
     }
 
     try {
+      console.log('Fecha antes de enviar:', selectedTask.alert_date);
       const taskData = {
         title: selectedTask.title,
         status: selectedTask.status,
         strategic_line: selectedTask.strategic_line,
-        due_date: selectedTask.due_date,
+        due_date: selectedTask.due_date ? new Date(selectedTask.due_date).toISOString().split('T')[0] : null,
         area: selectedTask.area,
         description: selectedTask.description || '',
-        assigned_to: selectedTask.assigned_to || 1,
-        leaders: selectedTask.leaders || [],
+        assigned_to: selectedTask.assigned_to || selectedTask.created_by?.id,
+        leaders: Array.isArray(selectedTask.leaders) 
+          ? selectedTask.leaders.map(leader => typeof leader === 'object' ? leader.id : leader)
+          : [],
         priority: selectedTask.priority || 'medium',
+        daruma_code: selectedTask.daruma_code || '',
+        alert_date: selectedTask.alert_date || null,
+        limit_month: selectedTask.limit_month || null,
+        deliverable: selectedTask.deliverable || '',
+        evidence: selectedTask.evidence || '',
+        support_team: Array.isArray(selectedTask.support_team)
+        ? selectedTask.support_team.map(member => (typeof member === 'object' ? member.id : member))
+        : []    
       };
-
+      console.log('Fecha preparada para enviar:', taskData.alert_date);
       if (modalMode === 'create') {
         await createTask.mutateAsync(taskData);
       } else {
         await updateTask.mutateAsync({ id: selectedTask.id, ...taskData });
+        console.log('Datos actualizados desde el backend:', taskData);
       }
       
       setSelectedTask(null);
@@ -184,6 +202,7 @@ const StrategicTable = () => {
             lines={lines}
             areas={areas}
             leaders={leaders}
+            users={leaders}
             statusConfig={statusConfig}
             isLoading={createTask.isLoading || updateTask.isLoading}
           />

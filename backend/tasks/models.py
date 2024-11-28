@@ -53,7 +53,7 @@ class Task(models.Model):
     # Campos existentes
     title = models.CharField(max_length=900, verbose_name='Título/Meta')
     daruma_code = models.CharField(max_length=100, blank=True, null=True, verbose_name='Código Daruma')
-    description = models.TextField(verbose_name='Descripción')
+    description = models.TextField(verbose_name='Descripción', blank=True)
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -91,7 +91,9 @@ class Task(models.Model):
     alert_date = models.DateField(
         null=True,
         blank=True,
-        verbose_name='Fecha alarma'
+        verbose_name='Fecha alarma',
+        auto_now=False,
+        auto_now_add=False
     )
     limit_month = models.IntegerField(verbose_name='Mes límite', null=True, blank=True)
     due_date = models.DateTimeField(verbose_name='Fecha límite')

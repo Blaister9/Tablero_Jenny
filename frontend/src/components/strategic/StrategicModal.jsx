@@ -30,15 +30,11 @@ const StrategicModal = ({
   };
 
   const handleSupportTeamChange = (e) => {
-    const options = e.target.options;
-    const selectedSupportTeam = [];
-    for (let i = 0; i < options.length; i++) {
-      if (options[i].selected) {
-        selectedSupportTeam.push(parseInt(options[i].value));  
-      }
-    }
-    onTaskChange({ ...task, support_team: selectedSupportTeam });
-  };
+    const selectedIds = Array.from(e.target.selectedOptions).map(option => parseInt(option.value, 10));
+    const updatedSupportTeam = selectedIds.map(id => users.find(user => user.id === id));
+    onTaskChange({ ...task, support_team: updatedSupportTeam });
+    console.log('Nuevo valor de support_team:', updatedSupportTeam);
+};  
 
   return (
     <motion.div 
@@ -177,10 +173,11 @@ const StrategicModal = ({
             <input
               type="date" 
               className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
-              value={task.alert_date ? task.alert_date.split('T')[0] : ''}
-              onChange={(e) => 
-                onTaskChange({ ...task, alert_date: e.target.value })
-              }
+              value={task.alert_date || ''}
+              onChange={(e) => {
+                console.log('Fecha seleccionada:', e.target.value);
+                onTaskChange({ ...task, alert_date: e.target.value });
+              }}
             />
           </div>
 
@@ -217,7 +214,7 @@ const StrategicModal = ({
           </div>
 
           {/* Asignado a */}
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Asignado a
             </label>
@@ -235,22 +232,17 @@ const StrategicModal = ({
                 </option>
               ))}
             </select>
-          </div>
+          </div> */}
           
           {/* Líderes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Líderes  
             </label>
-            <input
-              readOnly
-              className="w-full px-4 py-2 rounded-lg bg-gray-100 border border-gray-200 text-gray-700"  
-              value={task.leaders_names?.join(', ') || ''}
-            />
             <select
               multiple
-              className="w-full mt-2 px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
-              value={task.leaders?.map(l => l.id) || []} 
+              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
+              value={task.leaders?.map(l => typeof l === 'object' ? l.id : l) || []} 
               onChange={handleLeadersChange}
             >
               {leaders.map((leader) => (
@@ -269,9 +261,10 @@ const StrategicModal = ({
             <select 
               multiple
               className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
-              value={task.support_team?.map(m => m.id) || []}
+              value={Array.isArray(task.support_team) ? task.support_team.map(m => (typeof m === 'object' ? m.id : m)) : []}
               onChange={handleSupportTeamChange}  
             >
+              {console.log('Valor actual de support_team:', task.support_team)}
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.name}

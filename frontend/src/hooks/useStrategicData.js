@@ -14,6 +14,16 @@ export const useStrategicData = (filters) => {
   };
   delete adjustedFilters.line;
 
+  const { data: leadersData } = useQuery({
+    queryKey: ['leaders'],
+    queryFn: async () => {
+      const response = await api.get('/tasks/leaders/');
+      return response.data;
+    },
+  });
+
+  const leaders = leadersData || [];
+
   const {
     data,
     fetchNextPage,
@@ -25,6 +35,7 @@ export const useStrategicData = (filters) => {
     queryKey: ['strategic-tasks', adjustedFilters],
     queryFn: async ({ pageParam = 1 }) => {
       try {
+        console.log("console log de adjustedFilters antes de hacer la petición: ", adjustedFilters);
         const { data } = await api.get('/tasks/', {
           params: {
             ...adjustedFilters,
@@ -32,8 +43,8 @@ export const useStrategicData = (filters) => {
             page_size: PAGE_SIZE,
           },
         });
+        console.log('Datos recibidos del backend:', data.results);
 
-        // Verificar si tenemos los datos esperados
         if (!data || !Array.isArray(data.results)) {
           console.warn('Formato de respuesta inesperado:', data);
           return {
@@ -51,11 +62,9 @@ export const useStrategicData = (filters) => {
           totalCount: data.count,
         };
       } catch (error) {
-        // Si es un 404 y es la primera página, propagar el error
         if (error.response?.status === 404 && pageParam === 1) {
           throw error;
         }
-        // Si es un 404 en páginas posteriores, retornar página vacía
         if (error.response?.status === 404) {
           return {
             results: [],
@@ -68,7 +77,6 @@ export const useStrategicData = (filters) => {
       }
     },
     getNextPageParam: (lastPage) => {
-      // Solo continuar si hay más páginas
       if (lastPage.currentPage < lastPage.totalPages) {
         return lastPage.currentPage + 1;
       }
@@ -76,30 +84,26 @@ export const useStrategicData = (filters) => {
     },
     suspense: false,
     refetchOnWindowFocus: false,
-    cacheTime: 5 * 60 * 1000, // 5 minutos
-    staleTime: 1 * 60 * 1000, // 1 minuto
+    cacheTime: 5 * 60 * 1000,
+    staleTime: 1 * 60 * 1000,
     retry: (failureCount, error) => {
-      // No reintentar en caso de 404
       if (error.response?.status === 404) return false;
-      // Reintentar máximo 3 veces para otros errores
       return failureCount < 3;
     },
   });
 
-  // Extraer las líneas estratégicas únicas de las tareas
   const lines = data?.pages?.reduce((acc, page) => {
     const pageLines = page.results.map(task => ({
       id: task.strategic_line,
       name: task.strategic_line
     }));
-    
-    // Eliminar duplicados usando Map
+
     const uniqueLines = Array.from(
       new Map(
         [...acc, ...pageLines].map(item => [item.name, item])
       ).values()
     );
-    
+
     return uniqueLines;
   }, []) || [];
 
@@ -122,12 +126,12 @@ export const useStrategicData = (filters) => {
     },
   });
 
-  // Procesar los datos recibidos
   const tasks = data?.pages.flatMap((page) =>
     page.results.map(task => ({
       ...task,
       area_name: task.area?.name || '',
       leaders_names: task.leaders?.map(leader => leader.name) || [],
+      support_team: task.support_team || [],      
     }))
   ) || [];
 
@@ -147,19 +151,10 @@ export const useStrategicData = (filters) => {
     }
   });
 
-  // Queries para áreas y líderes
   const { data: areasData } = useQuery({
     queryKey: ['areas'],
     queryFn: async () => {
       const response = await api.get('/tasks/areas/');
-      return response.data;
-    },
-  });
-
-  const { data: leadersData } = useQuery({
-    queryKey: ['leaders'],
-    queryFn: async () => {
-      const response = await api.get('/tasks/leaders/');
       return response.data;
     },
   });

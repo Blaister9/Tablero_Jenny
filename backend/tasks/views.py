@@ -7,17 +7,9 @@ from .models import Task, StrategicLine, Area, Leader
 from .serializers import TaskSerializer, TaskListSerializer, TaskCreateSerializer, StrategicLineSerializer,AreaSerializer,LeaderSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
-from rest_framework import viewsets
-from rest_framework.permissions import AllowAny
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
-from django.shortcuts import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
-from .models import Task, StrategicLine, Area, Leader
-from .serializers import TaskSerializer, TaskListSerializer, TaskCreateSerializer, StrategicLineSerializer, AreaSerializer, LeaderSerializer
-from rest_framework.decorators import action
-from rest_framework.response import Response
+from django.db import models
+
 
 class CustomPagination(PageNumberPagination):
     page_size = 15
@@ -47,8 +39,8 @@ class LeaderViewSet(viewsets.ModelViewSet):
 class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'priority', 'assigned_to', 'year', 'strategic_line','area']
-    search_fields = ['title', 'description', 'area']
+    filterset_fields = ['status', 'priority', 'assigned_to', 'year', 'area']
+    search_fields = ['title', 'description']
     ordering_fields = ['due_date', 'created_at', 'priority']
     pagination_class = CustomPagination
 
@@ -56,27 +48,15 @@ class TaskViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Task.objects.all()
 
-        # Filtrar solo si los valores de los filtros no son "all"
-        status = self.request.query_params.get('status', None)
-        priority = self.request.query_params.get('priority', None)
-        year = self.request.query_params.get('year', None)
         strategic_line_name = self.request.query_params.get('strategic_line', None)
 
-        if status and status != 'all':
-            queryset = queryset.filter(status=status)
-        if priority and priority != 'all':
-            queryset = queryset.filter(priority=priority)
-        if year and year != 'all':
-            queryset = queryset.filter(year=year)
         if strategic_line_name and strategic_line_name != 'all':
-            strategic_line = get_object_or_404(StrategicLine, name=strategic_line_name)
             queryset = queryset.filter(strategic_line__name=strategic_line_name)
 
-        # Filtro adicional para usuarios autenticados
-        if user.is_authenticated:
-            if hasattr(user, 'role') and user.role in ['admin', 'manager']:
-                return queryset
-            return queryset.filter(assigned_to=user)
+            if user.is_authenticated:
+                if hasattr(user, 'role') and user.role in ['admin', 'manager']:
+                    return queryset
+                return queryset.filter(assigned_to=user)
 
         return queryset
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Clock, CheckCircle, MoreHorizontal, Eye, AlertCircle } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
@@ -185,7 +185,7 @@ const StrategicTableView = ({
       alert_date: () => (
         <div className="text-sm text-gray-500 whitespace-nowrap">
           {task.alert_date 
-            ? format(new Date(task.alert_date), 'd MMM yyyy', { locale: es })
+            ? format(parseISO(task.alert_date), 'd MMM yyyy', { locale: es })
             : 'N/A'
           }
         </div>
@@ -227,12 +227,11 @@ const StrategicTableView = ({
         </TooltipWrapper>
       ),
       support_team: () => (
-        <TooltipWrapper content={task.support_team?.map(m => m.name).join('\n') || 'N/A'}>
+        <TooltipWrapper
+          content={task.support_team?.map(member => member.name).join('\n') || 'N/A'}
+        >
           <div className="max-w-[150px] truncate text-sm text-gray-900">
-            {task.support_team?.length > 0 
-              ? task.support_team.map(m => m.name).join(', ')
-              : 'N/A'
-            }
+            {task.support_team?.map(member => member.name).join(', ') || 'N/A'}
           </div>
         </TooltipWrapper>
       ),

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Plus, Layers, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import RequireAuth from '../RequireAuth';
+import { useAuth } from '../../context/AuthContext';
 
 const StatCard = ({ title, value, icon: Icon, color }) => (
   <motion.div
@@ -24,6 +26,7 @@ const StrategicHeader = ({ tasks = [], onNewTask }) => {
   const pendingTasks = tasks.filter(t => t.status === 'Pendiente').length;
   const inProgressTasks = tasks.filter(t => t.status === 'En proceso').length;
   const completedTasks = tasks.filter(t => t.status === 'Cumplido').length;
+  const { canCreateTask } = useAuth();
 
   const stats = [
     {
@@ -74,13 +77,26 @@ const StrategicHeader = ({ tasks = [], onNewTask }) => {
           </p>
         </div>
 
-        <button
-          onClick={onNewTask}
-          className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+        <RequireAuth
+          fallback={
+            <button
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gray-400 hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Iniciar sesión para crear tarea
+            </button>
+          }
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Nueva Tarea
-        </button>
+          {canCreateTask() && (
+            <button
+              onClick={onNewTask}
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Nueva Tarea
+            </button>
+          )}
+        </RequireAuth>
       </div>
 
       <motion.div 

@@ -14,12 +14,14 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     const token = localStorage.getItem('token');
     if (token) {
-      try {
+      try {        
+        api.defaults.headers.common['Authorization'] = `JWT ${token}`;
         const response = await api.get('/users/me/');
         setUser(response.data);
       } catch (error) {
         console.error('Error checking auth:', error);
         localStorage.removeItem('token');
+        delete api.defaults.headers.common['Authorization'];
         setUser(null);
       }
     }
@@ -29,7 +31,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     try {
       const response = await api.post('/auth/jwt/create/', { username, password });
-      localStorage.setItem('token', response.data.access);
+      const token = response.data.access;
+      localStorage.setItem('token', token);
+      api.defaults.headers.common['Authorization'] = `JWT ${token}`;
       await checkAuth();
     } catch (error) {
       console.error('Error durante el login:', error);
@@ -39,12 +43,13 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    delete api.defaults.headers.common['Authorization'];
     setUser(null);
   };
 
   // Funciones de permisos
   const isJenny = () => {
-    return user?.username === 'jenny';
+    return user?.username === 'Jenny' || user?.username === 'admin_jenny';
   };
 
   const canCreateTask = () => {

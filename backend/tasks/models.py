@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from users.models import User
 
 class Area(models.Model):
     name = models.CharField(max_length=100, verbose_name='Nombre')
@@ -54,13 +55,13 @@ class Task(models.Model):
     daruma_code = models.CharField(max_length=100, blank=True, null=True, verbose_name='Código Daruma')
     description = models.TextField(verbose_name='Descripción', blank=True)
     assigned_to = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        User,
         on_delete=models.CASCADE,
         related_name='assigned_tasks',
         verbose_name='Asignado a'
     )
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        User,
         on_delete=models.CASCADE,
         related_name='created_tasks',
         verbose_name='Creado por'

@@ -26,8 +26,8 @@ class CanManageTasks(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
             
-        # Jenny puede hacer todo
-        if request.user.is_authenticated and request.user.username == 'jenny':
+        # Administrador puede hacer todo
+        if request.user.is_authenticated and request.user.is_admin:
             return True
             
         # Cualquier usuario puede modificar solo las observaciones

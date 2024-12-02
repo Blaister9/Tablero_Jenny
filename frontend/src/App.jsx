@@ -4,25 +4,9 @@ import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
 import Maintenance from './pages/Maintenance';
 import Strategic from './pages/Strategic';
-import Login from './pages/Login';
+import Login from './pages/login';
 
-/**Este es el verdadero protectedd, el de abajo e sun desarrollo */
-// const ProtectedRoute = ({ children }) => {
-//   const { user, loading } = useAuth();
-
-//   if (loading) {
-//     return <div>Cargando...</div>;
-//   }
-
-//   return user ? children : <Navigate to="/login" />;
-// };
-
-const ProtectedRoute = ({ children }) => {
-  // Temporalmente omitimos la verificación de `user` y `loading`.
-  return children;
-};
-
-
+// Eliminamos el ProtectedRoute ya que no lo necesitamos para las rutas principales
 function App() {
   return (
     <AuthProvider>
@@ -32,31 +16,25 @@ function App() {
           <Route
             path="/"
             element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Dashboard />
-                </MainLayout>
-              </ProtectedRoute>
+              <MainLayout>
+                <Dashboard />
+              </MainLayout>
             }
           />
           <Route
             path="/maintenance"
             element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Maintenance />
-                </MainLayout>
-              </ProtectedRoute>
+              <MainLayout>
+                <Maintenance />
+              </MainLayout>
             }
           />
           <Route
             path="/strategic"
             element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Strategic />
-                </MainLayout>
-              </ProtectedRoute>
+              <MainLayout>
+                <Strategic />
+              </MainLayout>
             }
           />
         </Routes>

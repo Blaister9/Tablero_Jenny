@@ -21,6 +21,19 @@ class User(AbstractUser):
         verbose_name='Rol'
     )
 
+    groups = models.ManyToManyField(
+        'auth.Group',
+        related_name='user_set',
+        blank=True,
+        verbose_name='Groups'
+    )
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        related_name='user_permissions_set',
+        blank=True,
+        verbose_name='User Permissions'
+    )
+
     class Meta:
         verbose_name = 'Usuario'
         verbose_name_plural = 'Usuarios'

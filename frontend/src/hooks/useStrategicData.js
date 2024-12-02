@@ -6,23 +6,32 @@ const PAGE_SIZE = 15;
 export const useStrategicData = (filters) => {
   const queryClient = useQueryClient();
 
+  // Aseguramos que leaders[] y support_team[] no sean undefined
   const adjustedFilters = {
     ...filters,
     strategic_line: filters.line !== 'all' ? filters.line : undefined,
     status: filters.status !== 'all' ? filters.status : undefined,
     year: filters.year !== 'all' ? filters.year : undefined,
+    'leaders[]': Array.isArray(filters.leaders) && filters.leaders.length > 0 ? filters.leaders : [],  // Forzar a que sea un array vacío si no hay líderes seleccionados
+    'support_team[]': Array.isArray(filters.supportTeam) && filters.supportTeam.length > 0 ? filters.supportTeam : [],  // Lo mismo para el equipo de soporte
   };
+  
+  // Eliminar propiedades que ya no necesitamos en los filtros
   delete adjustedFilters.line;
+  delete adjustedFilters.leaders;
+  delete adjustedFilters.supportTeam;
 
   const { data: leadersData } = useQuery({
     queryKey: ['leaders'],
     queryFn: async () => {
       const response = await api.get('/tasks/leaders/');
-      return response.data;
+      console.log('Leaders Data Response:', response.data);
+      return response.data || []; // Aseguramos que siempre retorne un array vacío si no hay datos
     },
   });
 
-  const leaders = leadersData || [];
+  const leaders = Array.isArray(leadersData) ? leadersData : [];
+  console.log('Processed Leaders:', leaders);
 
   const {
     data,
@@ -35,7 +44,7 @@ export const useStrategicData = (filters) => {
     queryKey: ['strategic-tasks', adjustedFilters],
     queryFn: async ({ pageParam = 1 }) => {
       try {
-        console.log("console log de adjustedFilters antes de hacer la petición: ", adjustedFilters);
+        console.log('Adjusted Filters:', adjustedFilters);  // Verificamos los filtros que se están enviando
         const { data } = await api.get('/tasks/', {
           params: {
             ...adjustedFilters,
@@ -62,6 +71,7 @@ export const useStrategicData = (filters) => {
           totalCount: data.count,
         };
       } catch (error) {
+        console.error('Error fetching data:', error);
         if (error.response?.status === 404 && pageParam === 1) {
           throw error;
         }
@@ -86,22 +96,17 @@ export const useStrategicData = (filters) => {
     refetchOnWindowFocus: false,
     cacheTime: 5 * 60 * 1000,
     staleTime: 1 * 60 * 1000,
-    retry: (failureCount, error) => {
-      if (error.response?.status === 404) return false;
-      return failureCount < 3;
-    },
+    retry: 2,
   });
 
   const lines = data?.pages?.reduce((acc, page) => {
-    const pageLines = page.results.map(task => ({
+    const pageLines = page.results.map((task) => ({
       id: task.strategic_line,
-      name: task.strategic_line
+      name: task.strategic_line,
     }));
 
     const uniqueLines = Array.from(
-      new Map(
-        [...acc, ...pageLines].map(item => [item.name, item])
-      ).values()
+      new Map([...acc, ...pageLines].map((item) => [item.name, item])).values()
     );
 
     return uniqueLines;
@@ -129,11 +134,11 @@ export const useStrategicData = (filters) => {
   });
 
   const tasks = data?.pages.flatMap((page) =>
-    page.results.map(task => ({
+    page.results.map((task) => ({
       ...task,
       area_name: task.area?.name || '',
-      leaders_names: task.leaders?.map(leader => leader.name) || [],
-      support_team: task.support_team || [],      
+      leaders_names: task.leaders?.map((leader) => leader.name) || [],
+      support_team: task.support_team || [],
     }))
   ) || [];
 
@@ -165,7 +170,7 @@ export const useStrategicData = (filters) => {
     tasks,
     lines,
     areas: areasData || [],
-    leaders: leadersData || [],
+    leaders: leaders || [],
     isLoading,
     error,
     updateTask,

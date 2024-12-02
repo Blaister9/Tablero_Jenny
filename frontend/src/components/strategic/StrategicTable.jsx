@@ -198,6 +198,8 @@ const StrategicTable = () => {
           setIsFilterOpen={setIsFilterOpen}
           lines={lines}
           statusConfig={statusConfig}
+          leaders={leaders}
+          areas={areas}
         />
 
         <StrategicTableView

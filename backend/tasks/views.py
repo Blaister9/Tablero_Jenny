@@ -50,7 +50,7 @@ class LeaderViewSet(viewsets.ModelViewSet):
 class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [CanManageTasks]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'priority', 'assigned_to', 'year', 'area']
+    filterset_fields = ['status', 'priority', 'assigned_to', 'year', 'area','leaders', 'support_team']
     search_fields = ['title', 'description']
     ordering_fields = ['due_date', 'created_at', 'priority']
     pagination_class = CustomPagination
@@ -61,6 +61,16 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         if strategic_line_name and strategic_line_name != 'all':
             queryset = queryset.filter(strategic_line__name=strategic_line_name)
+
+        # Nuevos filtros múltiples para líderes y equipo de soporte
+        leaders = self.request.query_params.getlist('leaders[]', [])
+        support_team = self.request.query_params.getlist('support_team[]', [])
+
+        if leaders:
+            queryset = queryset.filter(leaders__id__in=leaders).distinct()
+            
+        if support_team:
+            queryset = queryset.filter(support_team__id__in=support_team).distinct()        
 
         # Si el usuario está autenticado y es Jenny, puede ver todo
         # Si no está autenticado o no es Jenny, también puede ver todo

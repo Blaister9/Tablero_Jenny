@@ -1,7 +1,6 @@
 from django.db import models
 from django.conf import settings
 
-
 class Area(models.Model):
     name = models.CharField(max_length=100, verbose_name='Nombre')
     description = models.TextField(blank=True, verbose_name='Descripción')

@@ -15,8 +15,17 @@ const StrategicModal = ({
   users = [],
   statusConfig = {},
   isLoading = false,
+  isJenny = false,          
+  canEditObservations = false
 }) => {
   if (!isOpen) return null;
+
+  // Función helper para determinar si un campo es editable
+  const isFieldEditable = (fieldName) => {
+    if (isJenny) return true;
+    if (fieldName === 'description') return true;
+    return false;
+  };
 
   const handleLeadersChange = (e) => {
     const options = e.target.options;
@@ -34,7 +43,7 @@ const StrategicModal = ({
     const updatedSupportTeam = selectedIds.map(id => users.find(user => user.id === id));
     onTaskChange({ ...task, support_team: updatedSupportTeam });
     console.log('Nuevo valor de support_team:', updatedSupportTeam);
-};  
+};
 
   return (
     <motion.div 
@@ -51,7 +60,7 @@ const StrategicModal = ({
       >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">
-            {modalMode === 'create' ? 'Nueva Tarea' : 'Editar Tarea'}
+            {modalMode === 'create' ? 'Nueva Tarea' : isJenny ? 'Editar Tarea' : 'Ver Tarea'}
           </h2>
           <button 
             onClick={onClose}
@@ -69,27 +78,37 @@ const StrategicModal = ({
             </label>
             <input
               type="text"
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500" 
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('title') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={task.title || ''}
               onChange={(e) => 
-                onTaskChange({ ...task, title: e.target.value })
+                isFieldEditable('title') && onTaskChange({ ...task, title: e.target.value })
               }
+              readOnly={!isFieldEditable('title')}
             />
           </div>
 
           {/* Descripción */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Descripción
+              Descripción/Observaciones
             </label>
             <textarea
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('description') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={task.description || ''}
               onChange={(e) =>
-                onTaskChange({ ...task, description: e.target.value })
+                isFieldEditable('description') && onTaskChange({ ...task, description: e.target.value })
               }
               rows={3}
-              placeholder="Ingrese una descripción detallada"
+              placeholder={
+                isFieldEditable('description') 
+                  ? "Ingrese una descripción o agregue observaciones" 
+                  : "No tienes permisos para editar este campo"
+              }
+              readOnly={!isFieldEditable('description')}
             />
           </div>
 
@@ -99,11 +118,14 @@ const StrategicModal = ({
               Estado
             </label>
             <select
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('status') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={task.status || ''}
               onChange={(e) =>
-                onTaskChange({ ...task, status: e.target.value })
+                isFieldEditable('status') && onTaskChange({ ...task, status: e.target.value })
               }
+              disabled={!isFieldEditable('status')}
             >
               {Object.keys(statusConfig).map((status) => (
                 <option key={status} value={status}>
@@ -119,12 +141,14 @@ const StrategicModal = ({
               Línea Estratégica
             </label>
             <select
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('strategic_line') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={task.strategic_line || ''}
               onChange={(e) =>
-                onTaskChange({ ...task, strategic_line: e.target.value })
+                isFieldEditable('strategic_line') && onTaskChange({ ...task, strategic_line: e.target.value })
               }
-              disabled={modalMode === 'edit'}
+              disabled={!isFieldEditable('strategic_line') || modalMode === 'edit'}
             >
               <option value="">Seleccionar línea estratégica</option>
               {lines.map((line) => (
@@ -142,11 +166,14 @@ const StrategicModal = ({
             </label>
             <input 
               type="text"
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('daruma_code') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={task.daruma_code || ''}
               onChange={(e) => 
-                onTaskChange({ ...task, daruma_code: e.target.value })
+                isFieldEditable('daruma_code') && onTaskChange({ ...task, daruma_code: e.target.value })
               }
+              readOnly={!isFieldEditable('daruma_code')}
             />
           </div>
 
@@ -157,27 +184,35 @@ const StrategicModal = ({
             </label>
             <input
               type="date"
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('due_date') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={task.due_date ? task.due_date.split('T')[0] : ''}
               onChange={(e) =>
-                onTaskChange({ ...task, due_date: e.target.value })
+                isFieldEditable('due_date') && onTaskChange({ ...task, due_date: e.target.value })
               }
+              readOnly={!isFieldEditable('due_date')}
             />
           </div>
 
           {/* Fecha alerta */}
-           <div>
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Fecha alerta 
             </label>
             <input
               type="date" 
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('alert_date') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={task.alert_date || ''}
               onChange={(e) => {
-                console.log('Fecha seleccionada:', e.target.value);
-                onTaskChange({ ...task, alert_date: e.target.value });
+                if (isFieldEditable('alert_date')) {
+                  console.log('Fecha seleccionada:', e.target.value);
+                  onTaskChange({ ...task, alert_date: e.target.value });
+                }
               }}
+              readOnly={!isFieldEditable('alert_date')}
             />
           </div>
 
@@ -187,11 +222,14 @@ const StrategicModal = ({
               Mes límite
             </label>
             <select
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('limit_month') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={task.limit_month || ''}
               onChange={(e) =>
-                onTaskChange({ ...task, limit_month: parseInt(e.target.value) })
+                isFieldEditable('limit_month') && onTaskChange({ ...task, limit_month: parseInt(e.target.value) })
               }
+              disabled={!isFieldEditable('limit_month')}
             >
               {[...Array(12)].map((_, i) => (
                 <option key={i+1} value={i+1}>
@@ -241,9 +279,12 @@ const StrategicModal = ({
             </label>
             <select
               multiple
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('leaders') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={task.leaders?.map(l => typeof l === 'object' ? l.id : l) || []} 
-              onChange={handleLeadersChange}
+              onChange={(e) => isFieldEditable('leaders') && handleLeadersChange(e)}
+              disabled={!isFieldEditable('leaders')}
             >
               {leaders.map((leader) => (
                 <option key={leader.id} value={leader.id}>
@@ -260,11 +301,13 @@ const StrategicModal = ({
             </label>
             <select 
               multiple
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('support_team') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={Array.isArray(task.support_team) ? task.support_team.map(m => (typeof m === 'object' ? m.id : m)) : []}
-              onChange={handleSupportTeamChange}  
+              onChange={(e) => isFieldEditable('support_team') && handleSupportTeamChange(e)}
+              disabled={!isFieldEditable('support_team')}
             >
-              {console.log('Valor actual de support_team:', task.support_team)}
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.name}
@@ -273,33 +316,38 @@ const StrategicModal = ({
             </select>
           </div>
 
-          {/* Evidencia */}
+          {/* Evidencia y Entregable */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Evidencia
             </label>
             <input
               type="text"  
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('evidence') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={task.evidence || ''}
               onChange={(e) =>
-                onTaskChange({ ...task, evidence: e.target.value }) 
+                isFieldEditable('evidence') && onTaskChange({ ...task, evidence: e.target.value }) 
               }
+              readOnly={!isFieldEditable('evidence')}
             />
           </div>
 
-          {/* Entregable */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Entregable  
             </label>
             <input
               type="text"
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"  
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('deliverable') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={task.deliverable || ''}
               onChange={(e) =>
-                onTaskChange({ ...task, deliverable: e.target.value })
-              }  
+                isFieldEditable('deliverable') && onTaskChange({ ...task, deliverable: e.target.value })
+              }
+              readOnly={!isFieldEditable('deliverable')}
             />
           </div>
 
@@ -309,11 +357,14 @@ const StrategicModal = ({
               Prioridad  
             </label>
             <select
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500" 
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200 ${
+                isFieldEditable('priority') ? 'focus:ring-2 focus:ring-blue-500' : 'bg-gray-100'
+              }`}
               value={task.priority || 'medium'}
               onChange={(e) =>
-                onTaskChange({ ...task, priority: e.target.value })  
+                isFieldEditable('priority') && onTaskChange({ ...task, priority: e.target.value })  
               }
+              disabled={!isFieldEditable('priority')}
             >
               <option value="low">Baja</option>
               <option value="medium">Media</option> 
@@ -330,8 +381,13 @@ const StrategicModal = ({
               Cancelar
             </button>
 
+            {(isJenny || isFieldEditable('description')) && (
             <button
-              onClick={onSave}
+              onClick={() => {
+                const updateData = isJenny ? task : { description: task.description };
+                console.log('Datos a guardar:', updateData);
+                onSave(updateData);
+              }}
               disabled={isLoading} 
               className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
             >
@@ -342,6 +398,7 @@ const StrategicModal = ({
               )}
               {modalMode === 'create' ? 'Crear' : 'Guardar'}
             </button>
+          )}
           </div>
         </div>
       </motion.div>

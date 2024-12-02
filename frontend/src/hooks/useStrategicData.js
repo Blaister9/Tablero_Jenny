@@ -111,9 +111,11 @@ export const useStrategicData = (filters) => {
     mutationFn: async (updateData) => {
       try {
         const { id, ...data } = updateData;
+        console.log('Datos enviados a la API:', data); // Para debug
         const response = await api.patch(`/tasks/${id}/`, data);
         return response.data;
       } catch (error) {
+        console.error('Error completo:', error.response); // Para debug
         throw new Error(
           error.response?.data?.detail || 
           JSON.stringify(error.response?.data) || 

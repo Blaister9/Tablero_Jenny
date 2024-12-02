@@ -23,7 +23,9 @@ const StrategicTableView = ({
   onEditTask,
   parentRef,
   isLoading,
-  intObserver
+  intObserver,
+  canEditTask,
+  canEditObservations
 }) => {
   const {
     getVisibleColumns,
@@ -36,8 +38,6 @@ const StrategicTableView = ({
   const tableContainerRef = useRef(null);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-
 
   // Actualizar el ancho del contenedor de la tabla cuando cambien las columnas visibles
   useEffect(() => {
@@ -256,13 +256,31 @@ const StrategicTableView = ({
             <MoreHorizontal className="h-4 w-4 text-gray-500" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem 
-              onClick={() => onEditTask(task)}
-              className="flex items-center cursor-pointer"
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              <span>Ver detalles</span>
-            </DropdownMenuItem>
+            {canEditTask(task) ? (
+              <DropdownMenuItem 
+                onClick={() => onEditTask(task)}
+                className="flex items-center cursor-pointer"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                <span>Editar tarea</span>
+              </DropdownMenuItem>
+            ) : canEditObservations(task) ? (
+              <DropdownMenuItem 
+                onClick={() => onEditTask(task)}
+                className="flex items-center cursor-pointer"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                <span>Agregar observaciones</span>
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem 
+                onClick={() => onEditTask(task)}
+                className="flex items-center cursor-pointer"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                <span>Ver detalles</span>
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -338,7 +356,10 @@ const StrategicTableView = ({
                               height: `${virtualRow.size}px`,
                             }}
                             onClick={() => handleRowClick(task)}
-                            onDoubleClick={() => handleRowDoubleClick(task)}
+                            onDoubleClick={() => {
+                              // Siempre permitir abrir el modal, la restricción de edición se maneja dentro del modal
+                              handleRowDoubleClick(task);
+                            }}
                           >
                             <div className="flex items-center h-full">
                               {getVisibleColumns().map((column) => (

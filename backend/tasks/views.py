@@ -1,15 +1,24 @@
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
+from rest_framework import filters, status
 from django.shortcuts import get_object_or_404
 from .models import Task, StrategicLine, Area, Leader
-from .serializers import TaskSerializer, TaskListSerializer, TaskCreateSerializer, StrategicLineSerializer,AreaSerializer,LeaderSerializer
+from .serializers import (
+    TaskSerializer, 
+    TaskListSerializer, 
+    TaskCreateSerializer, 
+    StrategicLineSerializer,
+    AreaSerializer,
+    LeaderSerializer
+)
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.db import models
-
+from .permissions import CanManageTasks
+import logging
+logger = logging.getLogger(__name__)
 
 class CustomPagination(PageNumberPagination):
     page_size = 15
@@ -30,14 +39,16 @@ class AreaViewSet(viewsets.ModelViewSet):
     queryset = Area.objects.all()
     serializer_class = AreaSerializer
     permission_classes = [AllowAny]
+    http_method_names = ['get']  # Solo permitir lectura
 
 class LeaderViewSet(viewsets.ModelViewSet):
     queryset = Leader.objects.filter(active=True)
     serializer_class = LeaderSerializer
     permission_classes = [AllowAny]
+    http_method_names = ['get']  # Solo permitir lectura
 
 class TaskViewSet(viewsets.ModelViewSet):
-    permission_classes = [AllowAny]
+    permission_classes = [CanManageTasks]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'priority', 'assigned_to', 'year', 'area']
     search_fields = ['title', 'description']
@@ -45,19 +56,14 @@ class TaskViewSet(viewsets.ModelViewSet):
     pagination_class = CustomPagination
 
     def get_queryset(self):
-        user = self.request.user
         queryset = Task.objects.all()
-
         strategic_line_name = self.request.query_params.get('strategic_line', None)
 
         if strategic_line_name and strategic_line_name != 'all':
             queryset = queryset.filter(strategic_line__name=strategic_line_name)
 
-            if user.is_authenticated:
-                if hasattr(user, 'role') and user.role in ['admin', 'manager']:
-                    return queryset
-                return queryset.filter(assigned_to=user)
-
+        # Si el usuario está autenticado y es Jenny, puede ver todo
+        # Si no está autenticado o no es Jenny, también puede ver todo
         return queryset
 
     def get_serializer_class(self):
@@ -67,15 +73,33 @@ class TaskViewSet(viewsets.ModelViewSet):
             return TaskListSerializer
         return TaskSerializer
 
-    def perform_create(self, serializer):
-        if self.request.user.is_authenticated:
-            serializer.save(created_by=self.request.user)
+    
+    def perform_update(self, serializer):
+        logger.error("==== UPDATE DEBUG ====")
+        logger.error(f"Request method: {self.request.method}")
+        logger.error(f"Request data: {self.request.data}")
+        logger.error(f"Request headers: {self.request.headers}")
+        logger.error("==== END UPDATE DEBUG ====")
+
+        if self.request.user.is_authenticated and self.request.user.username == 'jenny':
+            serializer.save()
+        elif set(self.request.data.keys()) == {'description'}:
+            serializer.save()
         else:
-            # Para usuarios no autenticados, asignar un usuario por defecto
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            default_user = User.objects.first()  # O la lógica que prefieras
-            serializer.save(created_by=default_user)
+            return Response(
+                {"detail": "Solo puedes modificar el campo de descripción."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+    
+    def perform_destroy(self, instance):
+        # Solo Jenny puede eliminar tareas
+        if self.request.user.is_authenticated and self.request.user.username == 'jenny':
+            instance.delete()
+        else:
+            return Response(
+                {"detail": "Solo Jenny puede eliminar tareas."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
     @action(detail=False, methods=['get'])
     def strategic_lines(self, request):
@@ -99,4 +123,4 @@ class StrategicLineViewSet(viewsets.ModelViewSet):
     queryset = StrategicLine.objects.all()
     serializer_class = StrategicLineSerializer
     permission_classes = [AllowAny]
-
+    http_method_names = ['get']  # Solo permitir lectura

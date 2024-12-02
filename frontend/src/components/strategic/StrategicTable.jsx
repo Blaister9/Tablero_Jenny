@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { useStrategicData } from '../../hooks/useStrategicData';
 import { AnimatePresence } from 'framer-motion';
 import { Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 // Componentes
 import StrategicHeader from './StrategicHeader';
@@ -23,6 +24,9 @@ const StrategicTable = () => {
   
   // Referencias
   const parentRef = useRef(null);
+
+  // Auth context
+  const { canCreateTask, canEditTask, canEditObservations, isJenny } = useAuth();
 
   // Datos y estado
   const {
@@ -72,6 +76,11 @@ const StrategicTable = () => {
 
   // Manejadores de eventos
   const handleNewTask = () => {
+    if (!canCreateTask()) {
+      alert('Solo Jenny puede crear nuevas tareas.');
+      return;
+    }
+    
     setModalMode('create');
     setSelectedTask({
       title: '',
@@ -91,50 +100,61 @@ const StrategicTable = () => {
     setSelectedTask({
       ...task,
       support_team: Array.isArray(task.support_team)
-      ? task.support_team.map(member => (typeof member === 'object' ? member : leaders.find(user => user.id === member)))
-      : [],
+        ? task.support_team.map(member => (typeof member === 'object' ? member : leaders.find(user => user.id === member)))
+        : [],
     });
   };
-  
 
-  const handleSave = async () => {
+  const handleSave = async (updateData) => {
     if (!selectedTask) return;
-
+  
+    // Solo verificar permisos para crear tareas
+    if (modalMode === 'create' && !canCreateTask()) {
+      alert('No tienes permisos para crear tareas.');
+      return;
+    }
+  
     const errors = validateTask(selectedTask);
     if (errors.length > 0) {
       alert(errors.join('\n'));
       return;
     }
-
+  
     try {
-      console.log('Fecha antes de enviar:', selectedTask.alert_date);
-      const taskData = {
-        title: selectedTask.title,
-        status: selectedTask.status,
-        strategic_line: selectedTask.strategic_line,
-        due_date: selectedTask.due_date ? new Date(selectedTask.due_date).toISOString().split('T')[0] : null,
-        area: selectedTask.area,
-        description: selectedTask.description || '',
-        assigned_to: selectedTask.assigned_to || selectedTask.created_by?.id,
-        leaders: Array.isArray(selectedTask.leaders) 
-          ? selectedTask.leaders.map(leader => typeof leader === 'object' ? leader.id : leader)
-          : [],
-        priority: selectedTask.priority || 'medium',
-        daruma_code: selectedTask.daruma_code || '',
-        alert_date: selectedTask.alert_date || null,
-        limit_month: selectedTask.limit_month || null,
-        deliverable: selectedTask.deliverable || '',
-        evidence: selectedTask.evidence || '',
-        support_team: Array.isArray(selectedTask.support_team)
-        ? selectedTask.support_team.map(member => (typeof member === 'object' ? member.id : member))
-        : []    
-      };
-      console.log('Fecha preparada para enviar:', taskData.alert_date);
+      let taskData;
+      if (updateData) {
+        // Si updateData está presente, significa que solo estamos actualizando campos específicos (ej. descripción)
+        taskData = updateData;
+      } else {
+        // Si no, estamos actualizando toda la tarea (solo para Jenny)
+        taskData = {
+          title: selectedTask.title,
+          status: selectedTask.status,
+          strategic_line: selectedTask.strategic_line,
+          due_date: selectedTask.due_date ? new Date(selectedTask.due_date).toISOString().split('T')[0] : null,
+          area: selectedTask.area,
+          description: selectedTask.description || '',
+          assigned_to: selectedTask.assigned_to || selectedTask.created_by?.id,
+          leaders: Array.isArray(selectedTask.leaders) 
+            ? selectedTask.leaders.map(leader => typeof leader === 'object' ? leader.id : leader)
+            : [],
+          priority: selectedTask.priority || 'medium',
+          daruma_code: selectedTask.daruma_code || '',
+          alert_date: selectedTask.alert_date || null,
+          limit_month: selectedTask.limit_month || null,
+          deliverable: selectedTask.deliverable || '',
+          evidence: selectedTask.evidence || '',
+          observations: selectedTask.observations || '',
+          support_team: Array.isArray(selectedTask.support_team)
+            ? selectedTask.support_team.map(member => (typeof member === 'object' ? member.id : member))
+            : []    
+        };
+      }
+           
       if (modalMode === 'create') {
         await createTask.mutateAsync(taskData);
       } else {
         await updateTask.mutateAsync({ id: selectedTask.id, ...taskData });
-        console.log('Datos actualizados desde el backend:', taskData);
       }
       
       setSelectedTask(null);
@@ -166,7 +186,8 @@ const StrategicTable = () => {
     <div className="flex flex-col space-y-6">
       <StrategicHeader 
         tasks={tasks} 
-        onNewTask={handleNewTask} 
+        onNewTask={handleNewTask}
+        showNewButton={canCreateTask()} 
       />
 
       <div className="flex flex-col space-y-4 bg-white rounded-xl shadow-lg p-6">
@@ -186,26 +207,32 @@ const StrategicTable = () => {
           parentRef={parentRef}
           isLoading={isLoading}
           intObserver={intObserver}
+          canEditTask={canEditTask}
+          canEditObservations={canEditObservations}
         />
 
         <AnimatePresence>
-          <StrategicModal
-            isOpen={!!selectedTask}
-            onClose={() => {
-              setSelectedTask(null);
-              setModalMode(null);
-            }}
-            task={selectedTask || {}}
-            onTaskChange={setSelectedTask}
-            onSave={handleSave}
-            modalMode={modalMode}
-            lines={lines}
-            areas={areas}
-            leaders={leaders}
-            users={leaders}
-            statusConfig={statusConfig}
-            isLoading={createTask.isLoading || updateTask.isLoading}
-          />
+          {selectedTask && (
+            <StrategicModal
+              isOpen={!!selectedTask}
+              onClose={() => {
+                setSelectedTask(null);
+                setModalMode(null);
+              }}
+              task={selectedTask || {}}
+              onTaskChange={setSelectedTask}
+              onSave={(updateData) => handleSave(updateData)}
+              modalMode={modalMode}
+              lines={lines}
+              areas={areas}
+              leaders={leaders}
+              users={leaders}
+              statusConfig={statusConfig}
+              isLoading={createTask.isLoading || updateTask.isLoading}
+              isJenny={isJenny()}
+              canEditObservations={canEditObservations(selectedTask)}
+            />
+          )}
         </AnimatePresence>
       </div>
     </div>

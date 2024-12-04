@@ -10,4 +10,5 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-})
+  base: './', // Esta línea asegura rutas relativas en producción
+});

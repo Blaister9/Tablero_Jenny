@@ -10,7 +10,7 @@ SECRET_KEY = 'django-insecure-jqs)w9+)*&m_b3+1k&sgn#l19=ndy10w0jzw0e(nce^$7#x*db
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.10.80', 'localhost']
+ALLOWED_HOSTS = ['192.168.10.80', 'localhost','127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
@@ -30,7 +30,8 @@ INSTALLED_APPS = [
     'users',
     'tasks',
     'dashboard',
-    'maintenance'
+    'maintenance',
+    'contracts',
 ]
 
 MIDDLEWARE = [

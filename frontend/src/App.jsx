@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Maintenance from './pages/Maintenance';
 import Strategic from './pages/Strategic';
 import Login from './pages/login';
+import ContractsDashboard from './components/contracts/ContractsDashboard'
 
 // Eliminamos el ProtectedRoute ya que no lo necesitamos para las rutas principales
 function App() {
@@ -37,6 +38,7 @@ function App() {
               </MainLayout>
             }
           />
+          <Route path="/contracts-dashboard" element={<ContractsDashboard />} />          
         </Routes>
       </Router>
     </AuthProvider>

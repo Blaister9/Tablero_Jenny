@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://192.168.10.80:8081/api',
-  // baseURL: 'http://127.0.0.1:8081/api', para desarrollo.
+  // baseURL: 'http://192.168.10.80:8081/api', // Para producción.
+  baseURL: 'http://127.0.0.1:8081/api', //para desarrollo.
   headers: {'Content-Type': 'application/json',},
 });
 

@@ -10,10 +10,14 @@ function truncateLabel(label, maxLength = 10) {
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
+    const d = payload[0].payload
     return (
       <div className="bg-white p-2 border rounded shadow-sm text-sm">
-        <p className="font-semibold">{label}</p>
+        <p className="font-semibold">Rubro: {label}</p>
         <p>Valor: {numeral(payload[0].value).format('0,0.00')}</p>
+        {d.grupo && <p>Grupo: {d.grupo}</p>}
+        {d.subgrupo && <p>Subgrupo: {d.subgrupo}</p>}
+        {/* Agrega más campos si los tienes */}
       </div>
     )
   }

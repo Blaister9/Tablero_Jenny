@@ -1,5 +1,5 @@
 // frontend/src/components/contracts/ContractsDashboard.jsx
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useContractsKPIs } from '../../hooks/useContractsKPIs'
 import ContractsFilters from './ContractsFilters'
@@ -14,13 +14,24 @@ import { useSistemasInfoStats } from '../../hooks/useSistemasInfoStats'
 import LineChartAdiciones from './LineChartAdiciones'
 import BarChartSupervisores from './BarChartSupervisores'
 import PieChartSistemas from './PieChartSistemas'
+import PieChartEstados from './PieChartEstados' // Nuevo gráfico para estados
+import ContractFormModal from './ContractFormModal'
+import { useQueryClient } from '@tanstack/react-query'
+import ContractsTable from './ContractsTable'
+
+
 
 const ContractsDashboard = () => {
   const [filters, setFilters] = useState({})
+  const [showModal, setShowModal] = useState(false)
+  const queryClient = useQueryClient()
+
+  // Cada vez que cambien filters, volvemos a hacer fetch
   const { data, isLoading, error } = useContractsKPIs(filters)
-  const { data: adicionesData, isLoading: adLoading, error: adError } = useAdicionesStats()
-  const { data: supervisoresData, isLoading: supLoading, error: supError } = useSupervisoresStats()
-  const { data: sistemasData, isLoading: sisLoading, error: sisError } = useSistemasInfoStats()
+  const { data: adicionesData, isLoading: adLoading, error: adError } = useAdicionesStats(filters)
+  const { data: supervisoresData, isLoading: supLoading, error: supError } = useSupervisoresStats(filters)
+  const { data: sistemasData, isLoading: sisLoading, error: sisError } = useSistemasInfoStats(filters)
+  
 
   if (isLoading) return <div className="p-4">Cargando KPIs...</div>
   if (error) return <div className="p-4 text-red-500">Error al cargar KPIs</div>
@@ -42,20 +53,72 @@ const ContractsDashboard = () => {
   const supervisores = supervisoresData || []
   const sistemas = sistemasData || []
 
+  // Funcion para actualizar filtros desde ContractsFilters
+  const handleFiltersChange = (newFilters) => {
+    setFilters(newFilters)
+  }
+
+  // Para mostrar chips de filtros activos
+  // Mostraremos solo los filtros que no estén vacíos o "todos"
+  const activeFilters = Object.entries(filters).filter(([key, val]) => val && val !== '' && val !== 'todos' && val !== 'N/A')
+
+  const removeFilter = (filterKey) => {
+    const updated = { ...filters }
+    delete updated[filterKey]
+    setFilters(updated)
+  }
+
   return (
     <div className="max-w-screen-xl mx-auto px-8 py-10 bg-gray-50 space-y-12">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Dashboard de Contratos</h1>
-        {/* Botón para volver al inicio */}
-        <Link 
-          to="/" 
-          className="bg-blue-600 text-white px-4 py-2 rounded shadow font-medium hover:bg-blue-700"
-        >
-          Volver al Inicio
-        </Link>
+        <div className="flex gap-4">
+          <button 
+            onClick={() => setShowModal(true)} 
+            className="bg-green-600 text-white px-4 py-2 rounded shadow font-medium hover:bg-green-700"
+          >
+            Nuevo Contrato
+          </button>
+          <Link 
+            to="/" 
+            className="bg-blue-600 text-white px-4 py-2 rounded shadow font-medium hover:bg-blue-700"
+          >
+            Volver al Inicio
+          </Link>
+        </div>
       </div>
+
+      {showModal && (
+        <ContractFormModal 
+          onClose={() => setShowModal(false)} 
+          onSuccess={() => { 
+            queryClient.invalidateQueries('contracts-kpis')
+            queryClient.invalidateQueries('adiciones-stats')
+            queryClient.invalidateQueries('supervisores-stats')
+            queryClient.invalidateQueries('sistemas-info-stats')
+            queryClient.invalidateQueries('estados-stats')
+          }}
+        />
+      )}      
       
-      <ContractsFilters onChange={setFilters} />
+      <ContractsFilters onChange={handleFiltersChange} />
+
+      {/* Mostrar filtros activos como chips */}
+      {activeFilters.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {activeFilters.map(([key, val]) => (
+            <div key={key} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+              <span>{key}: {val}</span>
+              <button 
+                onClick={() => removeFilter(key)} 
+                className="text-blue-800 hover:text-blue-900 font-bold"
+              >
+                x
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-8">
         <KpiCard title="Total Contratos" value={kpis_generales?.total_contratos} />
@@ -120,6 +183,11 @@ const ContractsDashboard = () => {
           <PieChartSistemas data={sistemas} />
         </div>
       )}
+
+      <h2 className="text-2xl font-bold">Estados del Contrato</h2>
+      {/* Aquí mostramos un nuevo gráfico de estados con leyenda de colores */}
+      <PieChartEstados filters={filters} />
+      <ContractsTable filters={filters} />
     </div>
   )
 }

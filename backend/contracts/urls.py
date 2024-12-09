@@ -1,3 +1,4 @@
+# backend/contracts/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
@@ -8,7 +9,10 @@ from .views import (
     anios_options,
     adiciones_stats,
     supervisores_stats,
-    sistemas_info_stats
+    sistemas_info_stats,
+    filters_options,
+    estados_stats,
+    contracts_list
 )
 
 router = DefaultRouter()
@@ -20,9 +24,10 @@ urlpatterns = [
     path('contratistas-options/', contratistas_options, name='contratistas-options'),
     path('rubros-options/', rubros_options, name='rubros-options'),
     path('anios-options/', anios_options, name='anios-options'),
-
-    # Nuevos endpoints
     path('adiciones-stats/', adiciones_stats, name='adiciones-stats'),
     path('supervisores-stats/', supervisores_stats, name='supervisores-stats'),
     path('sistemas-info-stats/', sistemas_info_stats, name='sistemas-info-stats'),
+    path('filters-options/', filters_options, name='filters-options'),
+    path('estados-stats/', estados_stats, name='estados-stats'),
+    path('contracts-list/', contracts_list, name='contracts-list'),
 ]

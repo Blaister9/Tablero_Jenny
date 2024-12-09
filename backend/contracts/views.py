@@ -26,11 +26,21 @@ class ContractViewSet(viewsets.ModelViewSet):
 def kpis_full_summary(request):
     qs = Contract.objects.all()
 
+    # Filtros existentes
     anio = request.GET.get('anio')
     rubro = request.GET.get('rubro')
     contratista = request.GET.get('contratista')
     fecha_inicio_desde = request.GET.get('fecha_inicio_desde')
     fecha_inicio_hasta = request.GET.get('fecha_inicio_hasta')
+
+    # Filtros adicionales
+    grupo = request.GET.get('grupo')
+    subgrupo = request.GET.get('subgrupo')
+    area = request.GET.get('area')  # area_pertenece
+    tipo_proceso = request.GET.get('tipo_proceso')
+    sistema_pub = request.GET.get('sistema_publicacion')
+    impacto = request.GET.get('impacto')
+    supervisor = request.GET.get('supervisor')
 
     if anio:
         qs = qs.filter(anio_paa=anio)
@@ -42,13 +52,27 @@ def kpis_full_summary(request):
         qs = qs.filter(fecha_inicio_ejecucion__gte=fecha_inicio_desde)
     if fecha_inicio_hasta:
         qs = qs.filter(fecha_inicio_ejecucion__lte=fecha_inicio_hasta)
+    if grupo:
+        qs = qs.filter(grupo__icontains=grupo)
+    if subgrupo:
+        qs = qs.filter(subgrupo__icontains=subgrupo)
+    if area:
+        qs = qs.filter(area_pertenece__icontains=area)
+    if tipo_proceso:
+        qs = qs.filter(tipo_proceso__icontains=tipo_proceso)
+    if sistema_pub:
+        qs = qs.filter(sistema_publicacion__icontains=sistema_pub)
+    if impacto:
+        qs = qs.filter(impacto__icontains=impacto)
+    if supervisor:
+        qs = qs.filter(supervisor_contrato__icontains=supervisor)
 
     total_contratos = qs.count()
     valor_total_asignado_2024 = qs.aggregate(total=Sum('valor_asignado_2024'))['total'] or 0
     valor_total_final = qs.aggregate(total=Sum('valor_total_final_contrato'))['total'] or 0
     valor_promedio_final = qs.aggregate(prom=Avg('valor_total_final_contrato'))['prom'] or 0
 
-    # Calculo de duracion promedio sin DurationField
+    # Calculo de duracion promedio
     duracion_qs = qs.filter(fecha_inicio_ejecucion__isnull=False, fecha_final__isnull=False).values('fecha_inicio_ejecucion', 'fecha_final')
     total_dias = 0
     count_contratos_con_duracion = 0
@@ -94,6 +118,13 @@ def kpis_full_summary(request):
             'contratista': contratista or 'todos',
             'fecha_inicio_desde': fecha_inicio_desde or 'N/A',
             'fecha_inicio_hasta': fecha_inicio_hasta or 'N/A',
+            'grupo': grupo or 'todos',
+            'subgrupo': subgrupo or 'todos',
+            'area': area or 'todos',
+            'tipo_proceso': tipo_proceso or 'todos',
+            'sistema_publicacion': sistema_pub or 'todos',
+            'impacto': impacto or 'todos',
+            'supervisor': supervisor or 'todos',
         },
         'kpis_generales': {
             'total_contratos': total_contratos,
@@ -138,19 +169,14 @@ def anios_options(request):
     anios = sorted(anios)
     return Response(anios)
 
-# NUEVOS ENDPOINTS
-
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def adiciones_stats(request):
-    # Contratos con adiciones
     adiciones_qs = Contract.objects.filter(valor_adiciones_reducciones__gt=0)
     count_adiciones = adiciones_qs.count()
     total_adiciones = adiciones_qs.aggregate(total=Sum('valor_adiciones_reducciones'))['total'] or 0
     promedio_adiciones = total_adiciones / count_adiciones if count_adiciones > 0 else 0
 
-    # Distribución mensual de adiciones (basado en fecha_suscripcion_contrato)
-    # Suma de valor_adiciones_reducciones por mes
     distribucion_mensual = (adiciones_qs.filter(fecha_suscripcion_contrato__isnull=False)
                             .annotate(mes=ExtractMonth('fecha_suscripcion_contrato'))
                             .values('mes')
@@ -169,8 +195,6 @@ def adiciones_stats(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def supervisores_stats(request):
-    # Agrupamos por supervisor_contrato
-    # Nota: si hay supervisores vacíos, excluimos
     supervisores_qs = (Contract.objects.exclude(supervisor_contrato__isnull=True)
                        .exclude(supervisor_contrato__exact='')
                        .values('supervisor_contrato')
@@ -186,7 +210,6 @@ def supervisores_stats(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def sistemas_info_stats(request):
-    # Agrupar por sistema_publicacion
     sistemas_qs = (Contract.objects.exclude(sistema_publicacion__isnull=True)
                    .exclude(sistema_publicacion__exact='')
                    .values('sistema_publicacion')
@@ -197,4 +220,157 @@ def sistemas_info_stats(request):
                    .order_by('-valor'))
 
     data = list(sistemas_qs)
+    return Response(data)
+
+
+# NUEVO ENDPOINT filters-options
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def filters_options(request):
+    def to_dict(values):
+        return [{"label": v, "value": v} for v in values if v]
+
+    anios = Contract.objects.exclude(anio_paa__isnull=True).values_list('anio_paa', flat=True).distinct()
+    rubros = Contract.objects.exclude(rubro__isnull=True).exclude(rubro='').values_list('rubro', flat=True).distinct()
+    contratistas = Contract.objects.exclude(nombre_contratista__isnull=True).exclude(nombre_contratista='').values_list('nombre_contratista', flat=True).distinct()
+    grupos = Contract.objects.exclude(grupo__isnull=True).exclude(grupo='').values_list('grupo', flat=True).distinct()
+    subgrupos = Contract.objects.exclude(subgrupo__isnull=True).exclude(subgrupo='').values_list('subgrupo', flat=True).distinct()
+    areas = Contract.objects.exclude(area_pertenece__isnull=True).exclude(area_pertenece='').values_list('area_pertenece', flat=True).distinct()
+    tipos_proceso = Contract.objects.exclude(tipo_proceso__isnull=True).exclude(tipo_proceso='').values_list('tipo_proceso', flat=True).distinct()
+    sistemas_pub = Contract.objects.exclude(sistema_publicacion__isnull=True).exclude(sistema_publicacion='').values_list('sistema_publicacion', flat=True).distinct()
+    impactos = Contract.objects.exclude(impacto__isnull=True).exclude(impacto='').values_list('impacto', flat=True).distinct()
+    supervisores = Contract.objects.exclude(supervisor_contrato__isnull=True).exclude(supervisor_contrato='').values_list('supervisor_contrato', flat=True).distinct()
+
+    data = {
+        'anios': sorted(anios),
+        'rubros': to_dict(rubros),
+        'contratistas': to_dict(contratistas),
+        'grupos': to_dict(grupos),
+        'subgrupos': to_dict(subgrupos),
+        'areas': to_dict(areas),
+        'tipos_proceso': to_dict(tipos_proceso),
+        'sistemas_publicacion': to_dict(sistemas_pub),
+        'impactos': to_dict(impactos),
+        'supervisores': to_dict(supervisores)
+    }
+
+    return Response(data)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def estados_stats(request):
+    qs = Contract.objects.all()
+
+    # Copiamos los mismos filtros de kpis_full_summary:
+    anio = request.GET.get('anio')
+    rubro = request.GET.get('rubro')
+    contratista = request.GET.get('contratista')
+    fecha_inicio_desde = request.GET.get('fecha_inicio_desde')
+    fecha_inicio_hasta = request.GET.get('fecha_inicio_hasta')
+    grupo = request.GET.get('grupo')
+    subgrupo = request.GET.get('subgrupo')
+    area = request.GET.get('area')
+    tipo_proceso = request.GET.get('tipo_proceso')
+    sistema_pub = request.GET.get('sistema_publicacion')
+    impacto = request.GET.get('impacto')
+    supervisor = request.GET.get('supervisor')
+
+    if anio:
+        qs = qs.filter(anio_paa=anio)
+    if rubro:
+        qs = qs.filter(rubro__icontains=rubro)
+    if contratista:
+        qs = qs.filter(nombre_contratista__icontains=contratista)
+    if fecha_inicio_desde:
+        qs = qs.filter(fecha_inicio_ejecucion__gte=fecha_inicio_desde)
+    if fecha_inicio_hasta:
+        qs = qs.filter(fecha_inicio_ejecucion__lte=fecha_inicio_hasta)
+    if grupo:
+        qs = qs.filter(grupo__icontains=grupo)
+    if subgrupo:
+        qs = qs.filter(subgrupo__icontains=subgrupo)
+    if area:
+        qs = qs.filter(area_pertenece__icontains=area)
+    if tipo_proceso:
+        qs = qs.filter(tipo_proceso__icontains=tipo_proceso)
+    if sistema_pub:
+        qs = qs.filter(sistema_publicacion__icontains=sistema_pub)
+    if impacto:
+        qs = qs.filter(impacto__icontains=impacto)
+    if supervisor:
+        qs = qs.filter(supervisor_contrato__icontains=supervisor)
+
+    estados_count = {}
+    # Extraer todos los valores únicos de adjudicado
+    adjudicados = qs.exclude(adjudicado__isnull=True).exclude(adjudicado='').values_list('adjudicado', flat=True).distinct()
+    for estado_val in adjudicados:
+        count = qs.filter(adjudicado=estado_val).count()
+        estados_count[estado_val] = count
+
+    return Response(estados_count)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def contracts_list(request):
+    qs = Contract.objects.all()
+
+    # Mismos filtros que en kpis_full_summary
+    anio = request.GET.get('anio')
+    rubro = request.GET.get('rubro')
+    contratista = request.GET.get('contratista')
+    fecha_inicio_desde = request.GET.get('fecha_inicio_desde')
+    fecha_inicio_hasta = request.GET.get('fecha_inicio_hasta')
+    grupo = request.GET.get('grupo')
+    subgrupo = request.GET.get('subgrupo')
+    area = request.GET.get('area')
+    tipo_proceso = request.GET.get('tipo_proceso')
+    sistema_pub = request.GET.get('sistema_publicacion')
+    impacto = request.GET.get('impacto')
+    supervisor = request.GET.get('supervisor')
+
+    if anio:
+        qs = qs.filter(anio_paa=anio)
+    if rubro:
+        qs = qs.filter(rubro__icontains=rubro)
+    if contratista:
+        qs = qs.filter(nombre_contratista__icontains=contratista)
+    if fecha_inicio_desde:
+        qs = qs.filter(fecha_inicio_ejecucion__gte=fecha_inicio_desde)
+    if fecha_inicio_hasta:
+        qs = qs.filter(fecha_inicio_ejecucion__lte=fecha_inicio_hasta)
+    if grupo:
+        qs = qs.filter(grupo__icontains=grupo)
+    if subgrupo:
+        qs = qs.filter(subgrupo__icontains=subgrupo)
+    if area:
+        qs = qs.filter(area_pertenece__icontains=area)
+    if tipo_proceso:
+        qs = qs.filter(tipo_proceso__icontains=tipo_proceso)
+    if sistema_pub:
+        qs = qs.filter(sistema_publicacion__icontains=sistema_pub)
+    if impacto:
+        qs = qs.filter(impacto__icontains=impacto)
+    if supervisor:
+        qs = qs.filter(supervisor_contrato__icontains=supervisor)
+
+    # devolver campos básicos
+    data = []
+    for c in qs:
+        data.append({
+            'id': c.id,
+            'numero_contrato': c.numero_contrato,
+            'rubro': c.rubro,
+            'nombre_contratista': c.nombre_contratista,
+            'anio_paa': c.anio_paa,
+            'valor_total_final_contrato': float(c.valor_total_final_contrato or 0),
+            'adjudicado': c.adjudicado,
+            'grupo': c.grupo,
+            'subgrupo': c.subgrupo,
+            'area_pertenece': c.area_pertenece,
+            'tipo_proceso': c.tipo_proceso,
+            'sistema_publicacion': c.sistema_publicacion,
+            'impacto': c.impacto,
+        })
+
     return Response(data)

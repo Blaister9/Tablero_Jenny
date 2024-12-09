@@ -1,5 +1,6 @@
 // frontend/src/components/contracts/ContractsDashboard.jsx
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useContractsKPIs } from '../../hooks/useContractsKPIs'
 import ContractsFilters from './ContractsFilters'
 import KpiCard from './KpiCard'
@@ -43,7 +44,16 @@ const ContractsDashboard = () => {
 
   return (
     <div className="max-w-screen-xl mx-auto px-8 py-10 bg-gray-50 space-y-12">
-      <h1 className="text-3xl font-bold">Dashboard de Contratos</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Dashboard de Contratos</h1>
+        {/* Botón para volver al inicio */}
+        <Link 
+          to="/" 
+          className="bg-blue-600 text-white px-4 py-2 rounded shadow font-medium hover:bg-blue-700"
+        >
+          Volver al Inicio
+        </Link>
+      </div>
       
       <ContractsFilters onChange={setFilters} />
 

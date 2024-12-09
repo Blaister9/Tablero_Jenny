@@ -1,3 +1,4 @@
+// frontend/src/layouts/MainLayout.jsx
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +11,7 @@ const MainLayout = ({ children }) => {
     { name: 'Dashboard', path: '/' },
     { name: 'Plan de Mantenimiento', path: '/maintenance' },
     { name: 'Seguimiento', path: '/strategic' },
+    { name: 'Contratos', path: '/contracts-dashboard' } // Nuevo enlace agregado
   ];
 
   return (

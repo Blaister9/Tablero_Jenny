@@ -2,7 +2,16 @@ from django.db import models
 from users.models import User
 import datetime
 
+# Descripción general del código:
+# Este script define modelos de Django para la gestión de mantenimientos,
+# incluyendo subgrupos de mantenimiento, items de mantenimiento y su programación.
+# Se utilizan relaciones ForeignKey para vincular los modelos y se definen propiedades
+# para calcular la próxima fecha de mantenimiento y el estado del mismo.
+
 class MaintenanceSubGroup(models.Model):
+    """
+    Modelo para representar un subgrupo de mantenimiento.
+    """
     name = models.CharField(max_length=200, verbose_name='Nombre del Sub-Grupo')
     description = models.TextField(blank=True, verbose_name='Descripción')
 
@@ -12,9 +21,15 @@ class MaintenanceSubGroup(models.Model):
         ordering = ['name']
 
     def __str__(self):
+        """
+        Retorna el nombre del subgrupo para representación en string.
+        """
         return self.name
 
 class MaintenanceItem(models.Model):
+    """
+    Modelo para representar un item de mantenimiento.
+    """
     MAINTENANCE_TYPE_CHOICES = [
         ('preventive_logic', 'Preventivo Lógico'),
         ('preventive_physical', 'Preventivo Físico'),
@@ -73,7 +88,9 @@ class MaintenanceItem(models.Model):
 
     @property
     def next_maintenance_date(self):
-        """Calcula la próxima fecha de mantenimiento basada en la última"""
+        """
+        Calcula la próxima fecha de mantenimiento basada en la última fecha registrada y el tipo de mantenimiento.
+        """
         if not self.last_maintenance_date:
             return None
         
@@ -92,7 +109,9 @@ class MaintenanceItem(models.Model):
         return self.last_maintenance_date + timedelta(days=interval)
 
     def get_status_color(self):
-        """Retorna el color según el estado del mantenimiento"""
+        """
+        Retorna el color según el estado del mantenimiento (verde, naranja, rojo).
+        """
         if not self.last_maintenance_date:
             return 'red'
             
@@ -109,9 +128,15 @@ class MaintenanceItem(models.Model):
         ordering = ['sub_group', 'item_number']
 
     def __str__(self):
+        """
+        Retorna una representación string del item (número y elemento).
+        """
         return f"{self.item_number} - {self.element}"
 
 class MaintenanceSchedule(models.Model):
+    """
+    Modelo para representar la programación de un mantenimiento.
+    """
     item = models.ForeignKey(
         MaintenanceItem,
         on_delete=models.CASCADE,
@@ -154,6 +179,9 @@ class MaintenanceSchedule(models.Model):
         unique_together = ['item', 'year', 'month', 'week']
 
     def __str__(self):
+        """
+        Retorna una representación string de la programación (item, semana, mes, año).
+        """
         return f"{self.item} - Semana {self.week}/{self.month}/{self.year}"
 
 

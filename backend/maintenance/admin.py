@@ -4,11 +4,26 @@ from django.utils import timezone
 from django.utils.html import format_html
 from .models import MaintenanceSubGroup, MaintenanceItem, MaintenanceSchedule
 
+# Descripción general del código:
+# Este script configura la interfaz de administración de Django para los modelos de mantenimiento.
+# Define filtros personalizados para el estado del mantenimiento y del contrato,
+# y personaliza la visualización y las acciones disponibles en el panel de administración
+# para los modelos MaintenanceSubGroup, MaintenanceItem y MaintenanceSchedule.
+# Utiliza format_html para renderizar HTML directamente en la interfaz de administración,
+# permitiendo mostrar información con estilos y enlaces.
+
+
 class MaintenanceStatusFilter(admin.SimpleListFilter):
+    """
+    Filtro personalizado para el estado del mantenimiento.
+    """
     title = 'Estado de Mantenimiento'
     parameter_name = 'maintenance_status'
 
     def lookups(self, request, model_admin):
+        """
+        Define las opciones de filtro (Al día, Próximo a vencer, Vencido, Sin mantenimiento registrado).
+        """
         return (
             ('up_to_date', 'Al día'),
             ('due_soon', 'Próximo a vencer (30 días)'),
@@ -17,6 +32,9 @@ class MaintenanceStatusFilter(admin.SimpleListFilter):
         )
 
     def queryset(self, request, queryset):
+        """
+        Aplica el filtro al queryset basado en la opción seleccionada.
+        """
         today = timezone.now().date()
         if self.value() == 'up_to_date':
             return queryset.filter(last_maintenance_date__gte=today - timezone.timedelta(days=90))
@@ -31,10 +49,16 @@ class MaintenanceStatusFilter(admin.SimpleListFilter):
             return queryset.filter(last_maintenance_date__isnull=True)
 
 class ContractStatusFilter(admin.SimpleListFilter):
+    """
+    Filtro personalizado para el estado del contrato.
+    """
     title = 'Estado del Contrato'
     parameter_name = 'contract_status'
 
     def lookups(self, request, model_admin):
+        """
+        Define las opciones de filtro (Con Contrato, Sin Contrato, Contrato Vencido, Contrato por Vencer).
+        """
         return (
             ('with_contract', 'Con Contrato'),
             ('no_contract', 'Sin Contrato'),
@@ -43,6 +67,9 @@ class ContractStatusFilter(admin.SimpleListFilter):
         )
 
     def queryset(self, request, model_admin):
+        """
+        Aplica el filtro al queryset basado en la opción seleccionada.
+        """
         today = timezone.now().date()
         if self.value() == 'with_contract':
             return model_admin.get_queryset(request).exclude(contract_number='')
@@ -58,14 +85,23 @@ class ContractStatusFilter(admin.SimpleListFilter):
 
 @admin.register(MaintenanceSubGroup)
 class MaintenanceSubGroupAdmin(admin.ModelAdmin):
+    """
+    Configuración del admin para el modelo MaintenanceSubGroup.
+    """
     list_display = ('name', 'description', 'total_items', 'items_requiring_maintenance')
     search_fields = ('name', 'description')
     
     def total_items(self, obj):
+        """
+        Retorna el número total de items en el subgrupo.
+        """
         return obj.items.count()
     total_items.short_description = 'Total de Elementos'
 
     def items_requiring_maintenance(self, obj):
+        """
+        Retorna el número de items que requieren mantenimiento, con formato HTML para el color.
+        """
         count = obj.items.filter(
             last_maintenance_date__lt=timezone.now().date() - timezone.timedelta(days=90)
         ).count()
@@ -80,6 +116,9 @@ class MaintenanceSubGroupAdmin(admin.ModelAdmin):
 
 @admin.register(MaintenanceItem)
 class MaintenanceItemAdmin(admin.ModelAdmin):
+    """
+    Configuración del admin para el modelo MaintenanceItem.
+    """
     list_display = (
         'item_number',
         'element',
@@ -138,6 +177,9 @@ class MaintenanceItemAdmin(admin.ModelAdmin):
     )
 
     def get_next_maintenance(self, obj):
+        """
+        Retorna la fecha del próximo mantenimiento con formato HTML para el estado (Vencido, Próximo, Al día).
+        """
         next_date = obj.next_maintenance_date
         if not next_date:
             return format_html('<span style="color: gray;">No programado</span>')
@@ -160,6 +202,9 @@ class MaintenanceItemAdmin(admin.ModelAdmin):
     get_next_maintenance.short_description = 'Próximo Mantenimiento'
 
     def contract_status(self, obj):
+        """
+        Retorna el estado del contrato con formato HTML para el color (Sin Contrato, Contrato Vencido, Vigente).
+        """
         if not obj.contract_number:
             return format_html('<span style="color: red;">Sin Contrato</span>')
         if not obj.contract_duration:
@@ -176,6 +221,9 @@ class MaintenanceItemAdmin(admin.ModelAdmin):
     contract_status.short_description = 'Estado del Contrato'
 
     def last_maintenance_status(self, obj):
+        """
+        Retorna el estado del último mantenimiento con formato HTML para el color (Sin Mantenimiento, Vencido, Próximo, Al día).
+        """
         if not obj.last_maintenance_date:
             return format_html(
                 '<span style="color: red;">Sin Mantenimiento</span>'
@@ -204,6 +252,9 @@ class MaintenanceItemAdmin(admin.ModelAdmin):
     ]
 
     def mark_maintenance_completed(self, request, queryset):
+        """
+        Marca el mantenimiento como completado, actualizando la fecha del último mantenimiento y creando un nuevo registro en MaintenanceSchedule.
+        """
         for item in queryset:
             item.last_maintenance_date = timezone.now().date()
             item.save()
@@ -219,6 +270,9 @@ class MaintenanceItemAdmin(admin.ModelAdmin):
 
 @admin.register(MaintenanceSchedule)
 class MaintenanceScheduleAdmin(admin.ModelAdmin):
+    """
+    Configuración del admin para el modelo MaintenanceSchedule.
+    """
     list_display = (
         'item',
         'year',
@@ -247,6 +301,9 @@ class MaintenanceScheduleAdmin(admin.ModelAdmin):
     readonly_fields = ('updated_at',)
 
     def status_display(self, obj):
+        """
+        Retorna el estado de la programación con formato HTML para el color (Completado, Programado, Atrasado, No Programado).
+        """
         if obj.is_completed:
             return format_html(
                 '<span style="color: green;">Completado</span>'

@@ -4,10 +4,50 @@ from openpyxl import load_workbook
 from django.core.management.base import BaseCommand, CommandError
 from contracts.models import Contract
 
+# Descripción General del Código:
+
+# Este código implementa un comando de Django para importar datos de contratos desde un archivo Excel a la base de datos.
+# Utiliza la biblioteca openpyxl para leer los datos del Excel y el modelo Contract de Django para guardar los datos en la base de datos.
+# Incluye mapeo de columnas, conversión de tipos de datos y manejo de errores.
+
+# Funcionalidades Principales:
+
+# 1. Importación de Datos desde Excel:
+#    - Lee los datos de contratos desde un archivo Excel especificado por la ruta del archivo.
+#    - Utiliza un mapeo de columnas para relacionar los encabezados del Excel con los campos del modelo Contract.
+#    - Convierte los datos de las celdas del Excel a los tipos de datos correctos (fecha, decimal, entero, texto).
+#    - Guarda los datos en la base de datos utilizando el modelo Contract.
+
+# 2. Manejo de Errores:
+#    - Maneja errores al abrir el archivo Excel, al no encontrar la hoja de cálculo correcta y al convertir los tipos de datos.
+#    - Imprime mensajes de error en la consola para informar al usuario sobre los problemas.
+
+# 3. Flexibilidad y Configuración:
+#    - Permite especificar la ruta del archivo Excel como un argumento del comando.
+#    - Utiliza constantes para definir el mapeo de columnas y los tipos de datos, lo que facilita la configuración y la modificación.
+
+# Clases:
+
+# - Command: Clase que hereda de BaseCommand y define el comando de Django para importar los datos de contratos.
+
+# Métodos de la Clase Command:
+
+# - add_arguments(self, parser):
+#   - Define los argumentos que se pueden pasar al comando desde la línea de comandos (en este caso, la ruta del archivo Excel).
+
+# - handle(self, *args, **options):
+#   - Implementa la lógica principal del comando para leer los datos del Excel y guardarlos en la base de datos.
+
 class Command(BaseCommand):
+    """
+    Clase que define el comando de Django para importar datos de contratos desde un archivo Excel.
+    """
     help = "Importa los datos de contratos desde un archivo Excel."
 
     def add_arguments(self, parser):
+        """
+        Define los argumentos que se pueden pasar al comando desde la línea de comandos, en este caso, la ruta del archivo Excel.
+        """
         parser.add_argument(
             '--file',
             type=str,
@@ -16,6 +56,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        """
+        Implementa la lógica principal del comando para leer los datos del Excel, convertirlos y guardarlos en la base de datos.
+        """
         file_path = options['file']
         
         # Mapeo de columnas Excel -> campos del modelo Contract

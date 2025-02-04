@@ -7,11 +7,73 @@ from django.db.models.functions import ExtractMonth
 from .models import Contract
 from .serializers import ContractSerializer
 
+# Descripción General del Código:
+
+# Este código implementa una API RESTful utilizando Django Rest Framework para gestionar información sobre contratos.
+# Proporciona endpoints para realizar operaciones CRUD (Crear, Leer, Actualizar, Borrar) sobre contratos,
+# así como endpoints adicionales para calcular y retornar KPIs (Indicadores Clave de Rendimiento),
+# estadísticas y opciones de filtro.
+
+# Funcionalidades Principales:
+
+# 1. Gestión de Contratos (ContractViewSet):
+#    - Permite crear, leer, actualizar y borrar contratos a través de una API.
+#    - Implementa un sistema de permisos que restringe el acceso a las operaciones de escritura
+#      (POST, PUT, PATCH, DELETE) solo a usuarios administradores.
+
+# 2. Cálculo de KPIs (kpis_full_summary):
+#    - Calcula y retorna un resumen completo de los KPIs relacionados con los contratos, como:
+#      - Total de contratos
+#      - Valor total asignado
+#      - Valor total final
+#      - Valor promedio final
+#      - Duración promedio
+#    - Permite aplicar filtros a los contratos para calcular los KPIs en base a criterios específicos.
+
+# 3. Opciones de Filtro (contratistas_options, rubros_options, anios_options, filters_options):
+#    - Retorna listas de opciones únicas para diferentes campos (contratistas, rubros, años)
+#      que pueden ser utilizadas en la interfaz de usuario para filtrar los resultados.
+
+# 4. Estadísticas (adiciones_stats, supervisores_stats, sistemas_info_stats, estados_stats):
+#    - Calcula y retorna estadísticas sobre diferentes aspectos de los contratos, como:
+#      - Adiciones (cantidad, valor total, distribución mensual)
+#      - Supervisores (cantidad de contratos supervisados, valor total de los contratos)
+#      - Sistemas de publicación (cantidad de contratos publicados, valor total de los contratos)
+#      - Estados (conteo de contratos por estado, como "adjudicado")
+
+# 5. Listado de Contratos (contracts_list):
+#    - Retorna una lista de contratos con campos básicos, aplicando filtros.
+
+# Tecnologías Utilizadas:
+
+# - Django: Framework web de alto nivel para construir aplicaciones web en Python.
+# - Django Rest Framework: Toolkit poderoso y flexible para construir APIs RESTful.
+# - Python: Lenguaje de programación.
+
+# Modelos y Serializadores:
+
+# - Contract: Modelo Django que define la estructura de los datos de los contratos.
+# - ContractSerializer: Serializador que convierte los objetos Contract en datos JSON y viceversa.
+
+# Permisos:
+
+# - IsAuthenticated: Permite el acceso solo a usuarios autenticados.
+# - IsAdminUser: Permite el acceso solo a usuarios administradores.
+# - AllowAny: Permite el acceso a cualquier usuario, autenticado o no.
+
+
+
 class ContractViewSet(viewsets.ModelViewSet):
+    """
+    Clase que maneja las operaciones CRUD (Crear, Leer, Actualizar, Borrar) para el modelo Contract a través de una API.
+    """
     queryset = Contract.objects.all()
     serializer_class = ContractSerializer
 
     def get_permissions(self):
+        """
+        Determina los permisos necesarios para acceder a las diferentes acciones del ContractViewSet (listar, crear, etc.).
+        """
         # Permisos:
         #   - GET (list, retrieve): usuario autenticado
         #   - POST, PUT, PATCH, DELETE: usuario admin
@@ -24,6 +86,9 @@ class ContractViewSet(viewsets.ModelViewSet):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def kpis_full_summary(request):
+    """
+    Calcula y retorna un resumen completo de los KPIs (Indicadores Clave de Rendimiento) relacionados con los contratos, aplicando filtros y agregaciones.
+    """
     qs = Contract.objects.all()
 
     # Filtros existentes
@@ -146,6 +211,9 @@ def kpis_full_summary(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def contratistas_options(request):
+    """
+    Retorna una lista de opciones de contratistas únicos para ser usadas en filtros o selects de la interfaz de usuario.
+    """
     contratistas = Contract.objects.exclude(nombre_contratista__isnull=True)\
                                    .exclude(nombre_contratista__exact='')\
                                    .values_list('nombre_contratista', flat=True).distinct()
@@ -155,6 +223,9 @@ def contratistas_options(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def rubros_options(request):
+    """
+    Retorna una lista de opciones de rubros únicos para ser usadas en filtros o selects de la interfaz de usuario.
+    """
     rubros = Contract.objects.exclude(rubro__isnull=True)\
                              .exclude(rubro__exact='')\
                              .values_list('rubro', flat=True).distinct()
@@ -164,6 +235,9 @@ def rubros_options(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def anios_options(request):
+    """
+    Retorna una lista de opciones de años únicos para ser usadas en filtros o selects de la interfaz de usuario.
+    """
     anios = Contract.objects.exclude(anio_paa__isnull=True)\
                             .values_list('anio_paa', flat=True).distinct()
     anios = sorted(anios)
@@ -172,6 +246,9 @@ def anios_options(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def adiciones_stats(request):
+    """
+    Calcula estadísticas relacionadas con las adiciones a los contratos, como el número total, el valor total y la distribución mensual.
+    """
     adiciones_qs = Contract.objects.filter(valor_adiciones_reducciones__gt=0)
     count_adiciones = adiciones_qs.count()
     total_adiciones = adiciones_qs.aggregate(total=Sum('valor_adiciones_reducciones'))['total'] or 0
@@ -195,6 +272,9 @@ def adiciones_stats(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def supervisores_stats(request):
+    """
+    Calcula estadísticas de los supervisores de los contratos, como la cantidad de contratos supervisados y el valor total de los contratos supervisados.
+    """
     supervisores_qs = (Contract.objects.exclude(supervisor_contrato__isnull=True)
                        .exclude(supervisor_contrato__exact='')
                        .values('supervisor_contrato')
@@ -210,6 +290,9 @@ def supervisores_stats(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def sistemas_info_stats(request):
+    """
+    Calcula estadísticas sobre los sistemas de publicación utilizados para los contratos.
+    """
     sistemas_qs = (Contract.objects.exclude(sistema_publicacion__isnull=True)
                    .exclude(sistema_publicacion__exact='')
                    .values('sistema_publicacion')
@@ -227,6 +310,9 @@ def sistemas_info_stats(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def filters_options(request):
+    """
+    Retorna un diccionario con todas las opciones de filtro (años, rubros, contratistas, etc.) para ser usadas en la interfaz de usuario.
+    """
     def to_dict(values):
         return [{"label": v, "value": v} for v in values if v]
 
@@ -259,8 +345,10 @@ def filters_options(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def estados_stats(request):
+    """
+    Retorna un conteo de los contratos agrupados por su estado (adjudicado, etc.), aplicando filtros.
+    """
     qs = Contract.objects.all()
-
     # Copiamos los mismos filtros de kpis_full_summary:
     anio = request.GET.get('anio')
     rubro = request.GET.get('rubro')
@@ -313,6 +401,9 @@ def estados_stats(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def contracts_list(request):
+    """
+    Retorna una lista de contratos con campos básicos, aplicando filtros.
+    """
     qs = Contract.objects.all()
 
     # Mismos filtros que en kpis_full_summary

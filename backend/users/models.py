@@ -1,6 +1,10 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+# Descripción general del código:
+# Este script define un modelo de usuario personalizado en Django que extiende el modelo AbstractUser.
+# Agrega campos adicionales como departamento y rol, y personaliza las relaciones con los grupos y permisos.
+
 class User(AbstractUser):
     """
     Modelo personalizado de Usuario extendiendo AbstractUser
@@ -39,4 +43,7 @@ class User(AbstractUser):
         verbose_name_plural = 'Usuarios'
 
     def __str__(self):
+        """
+        Retorna el nombre completo del usuario y su rol.
+        """
         return f"{self.get_full_name()} - {self.get_role_display()}"

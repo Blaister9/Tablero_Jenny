@@ -2,7 +2,15 @@ from django.db import models
 from django.conf import settings
 from users.models import User
 
+# Descripción general del código:
+# Este script define modelos de Django para la gestión de tareas y elementos relacionados,
+# como áreas, líderes y líneas estratégicas. Incluye modelos para representar la estructura
+# organizativa y el seguimiento del progreso de las tareas, así como el registro de actualizaciones.
+
 class Area(models.Model):
+    """
+    Modelo para representar un área organizativa.
+    """
     name = models.CharField(max_length=100, verbose_name='Nombre')
     description = models.TextField(blank=True, verbose_name='Descripción')
 
@@ -11,9 +19,15 @@ class Area(models.Model):
         verbose_name_plural = 'Áreas'
 
     def __str__(self):
+        """
+        Retorna el nombre del área.
+        """
         return self.name
 
 class Leader(models.Model):
+    """
+    Modelo para representar un líder.
+    """
     name = models.CharField(max_length=100, verbose_name='Nombre')
     role = models.CharField(max_length=100, verbose_name='Rol', blank=True)
     active = models.BooleanField(default=True, verbose_name='Activo')
@@ -24,9 +38,15 @@ class Leader(models.Model):
         ordering = ['name']
 
     def __str__(self):
+        """
+        Retorna el nombre del líder.
+        """
         return self.name
 
 class StrategicLine(models.Model):
+    """
+    Modelo para representar una línea estratégica.
+    """
     name = models.CharField(max_length=100, verbose_name='Línea')
     description = models.TextField(blank=True, verbose_name='Descripción')
 
@@ -35,9 +55,15 @@ class StrategicLine(models.Model):
         verbose_name_plural = 'Líneas Estratégicas'
 
     def __str__(self):
+        """
+        Retorna el nombre de la línea estratégica.
+        """
         return self.name
 
 class Task(models.Model):
+    """
+    Modelo principal para representar una tarea.
+    """
     STATUS_CHOICES = [
         ('Pendiente', 'Pendiente'),
         ('En proceso', 'En Proceso'),
@@ -110,9 +136,15 @@ class Task(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
+        """
+        Retorna el título de la tarea y su estado.
+        """
         return f"{self.title} - {self.get_status_display()}"
 
 class TaskUpdate(models.Model):
+    """
+    Modelo para registrar las actualizaciones de una tarea.
+    """
     task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
@@ -141,5 +173,8 @@ class TaskUpdate(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
+        """
+        Retorna una descripción de la actualización, incluyendo el título de la tarea y la fecha de creación.
+        """
         return f"Actualización de {self.task.title} - {self.created_at}"
 

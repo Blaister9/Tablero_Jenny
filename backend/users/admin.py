@@ -2,8 +2,16 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import User
 
+# Descripción general del código:
+# Este script configura la interfaz de administración de Django para el modelo de usuario personalizado.
+# Extiende la clase UserAdmin para personalizar la visualización, los filtros, los campos de búsqueda
+# y los fieldsets en la página de administración de usuarios.
+
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
+    """
+    Configuración del admin para el modelo User personalizado.
+    """
     list_display = ('username', 'email', 'first_name', 'last_name', 'department', 'role', 'is_active')
     list_filter = ('is_active', 'role', 'department')
     search_fields = ('username', 'first_name', 'last_name', 'email')
